@@ -111,14 +111,7 @@ const std::vector<ShortcutSpec>& shortcut_registry() {
         {"Diagnostics", "win.dump-registry", {"<Ctrl>d"}, "",
          "Dump the widget registry to the log"},
 
-        // ── Edit (s046) ───────────────────────────────────────────────────────
-        // Doc-only ON PURPOSE: an accelerator would take Ctrl+Z from every text
-        // box. The window hears these instead (Shell_bindings.cpp).
-        {"Edit", "", {}, "Ctrl+Z", "Undo -- anywhere but a text box (which keeps its own)"},
-        {"Edit", "", {}, "Ctrl+Shift+Z  /  Ctrl+Y", "Redo"},
-
         // ── General ───────────────────────────────────────────────────────────
-        {"General", "win.pick-folder",   {"<Ctrl>o"}, "", "Pick a folder"},
         {"General", "win.shortcuts",     {"<Ctrl>question", "<Ctrl>slash"}, "",
          "Keyboard shortcuts (this window)"},
         {"General", "win.about",         {"F1"}, "", "About Trails"},
@@ -126,7 +119,21 @@ const std::vector<ShortcutSpec>& shortcut_registry() {
 
         // ── Mouse ─────────────────────────────────────────────────────────────
         // Doc-only: a gesture is not a GAction, but the reader still needs it.
-        {"Mouse", "", {}, "Click a recent", "Open that folder"},
+        {"Mouse", "", {}, "Click a tile", "Open its tab"},
+
+        // ── Tabs (s003) ───────────────────────────────────────────────────────
+        // One row per core::tab_registry() entry, in rail order; the selftest
+        // checks the two lists agree. Alt+N is GNOME's tab-switch convention.
+        {"Tabs", "win.tab::overview",  {"<Alt>1"}, "", "Overview"},
+        {"Tabs", "win.tab::cpu",       {"<Alt>2"}, "", "CPU"},
+        {"Tabs", "win.tab::memory",    {"<Alt>3"}, "", "Memory"},
+        {"Tabs", "win.tab::processes", {"<Alt>4"}, "", "Processes"},
+        {"Tabs", "win.tab::disks",     {"<Alt>5"}, "", "Disks"},
+        {"Tabs", "win.tab::network",   {"<Alt>6"}, "", "Network"},
+        {"Tabs", "win.tab::gpu",       {"<Alt>7"}, "", "GPU"},
+        {"Tabs", "win.tab::sensors",   {"<Alt>8"}, "", "Sensors & Power"},
+        {"Tabs", "win.tab::services",  {"<Alt>9"}, "", "Services"},
+        {"Tabs", "win.tab::trails",    {"<Alt>0"}, "", "Trails"},
 
     };
     return kReg;

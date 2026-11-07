@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- Trails tab icon (sensors). First pass, s003; Rouster's art replaces it.
+       currentColor so the tab's CSS colour paints it. -->
+  <g fill="currentColor"><path fill-rule="evenodd" d="M5 1.5a2.5 2.5 0 0 1 5 0V9a4 4 0 1 1-5 0zM6.5 2v7.8a2.6 2.6 0 1 0 2 0V2a1 1 0 0 0-2 0z"/><circle cx="7.5" cy="12.2" r="1.6"/><path d="M7 5h1v6H7z"/><path d="M13 1l-2 4h1.6L11.5 9 15 4.2h-1.7L14.5 1z"/></g>
+</svg>

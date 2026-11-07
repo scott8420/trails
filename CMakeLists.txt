@@ -49,6 +49,9 @@ add_library(trails_core STATIC
     src/core/probe/DiskStats.cpp
     src/core/probe/ProcTable.cpp
     src/core/Sampler.cpp
+    # s003 -- the one tab list (rail, pages, icons, Alt+N) and value formatting.
+    src/core/Tabs.cpp
+    src/core/Format.cpp
 )
 target_include_directories(trails_core PUBLIC include)
 # Vendored nlohmann/json (header-only, MIT), PRIVATE -- an implementation detail
@@ -73,7 +76,8 @@ find_program(GLIB_COMPILE_RESOURCES glib-compile-resources REQUIRED)
 set(TRAILS_GRESOURCE_XML "${CMAKE_CURRENT_SOURCE_DIR}/resources/trails.gresource.xml")
 set(TRAILS_RESOURCES_C   "${CMAKE_CURRENT_BINARY_DIR}/trails-resources.c")
 file(GLOB TRAILS_RESOURCE_FILES
-     "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/scalable/apps/*.svg")
+     "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/scalable/apps/*.svg"
+     "${CMAKE_CURRENT_SOURCE_DIR}/resources/*.css")
 add_custom_command(
     OUTPUT  "${TRAILS_RESOURCES_C}"
     COMMAND "${GLIB_COMPILE_RESOURCES}"
@@ -102,6 +106,9 @@ add_executable(trails
     src/Shell_bindings.cpp
     src/Shell_handlers.cpp
     src/Shell_helpers.cpp
+    src/Shell_live.cpp
+    src/widgets/Graph.cpp
+    src/widgets/Tile.cpp
     src/AboutWindow.cpp
     src/ShortcutsDialog.cpp
     src/Registry.cpp

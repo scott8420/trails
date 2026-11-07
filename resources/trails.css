@@ -1,0 +1,116 @@
+/* Trails skin -- PLACEHOLDER (s003). Rouster's skin replaces this file when
+   its resources arrive; the class names below are the contract the code
+   relies on, so a new skin restyles them without touching C++.
+
+   Contract:
+     .trails                  the window
+     .rail / .rail row        the tab rail; each row also has its tab class
+     .rail-icon .rail-label   inside a rail row
+     .page                    every stack page (padding)
+     .tile                    an Overview tile (a button); also its tab class
+     .tile-icon .tile-title .tile-value .tile-detail
+     .graph                   a Graph -- it DRAWS in its CSS `color`
+     .placeholder .placeholder-icon .placeholder-title
+     .tab-<id>                one per tab (core/Tabs.cpp): sets the tab colour */
+
+@define-color c_overview #7c6cf2;
+@define-color c_cpu      #ff6b4a;
+@define-color c_memory   #2fb7a6;
+@define-color c_processes #f4a51c;
+@define-color c_disks    #4a90f2;
+@define-color c_network  #33b864;
+@define-color c_gpu      #d64fd0;
+@define-color c_sensors  #f25c7a;
+@define-color c_services #8a9bb0;
+@define-color c_trails   #b8823a;
+
+/* ── rail ───────────────────────────────────────────────────────────────── */
+.rail-scroll { border-right: 1px solid alpha(currentColor, 0.08); }
+.rail { background: transparent; padding: 10px 0; }
+.rail row { padding: 9px 14px; margin: 2px 10px; border-radius: 14px; }
+.rail-label { font-weight: 600; font-size: 1.05em; }
+
+/* ── pages + tiles ──────────────────────────────────────────────────────── */
+.page { padding: 24px; }
+.tile {
+    padding: 16px 18px 12px 18px;
+    border-radius: 20px;
+    background-image: none;
+    background-color: alpha(currentColor, 0.045);
+    border: 1px solid alpha(currentColor, 0.09);
+    box-shadow: none;
+}
+.tile:hover { background-color: alpha(currentColor, 0.08); }
+.tile-title  { font-size: 1.2em; font-weight: 700; }
+.tile-value  { font-size: 2.3em; font-weight: 800; }
+.tile-detail { opacity: 0.72; }
+.graph { margin-top: 6px; }
+
+.placeholder-title { font-size: 2.2em; font-weight: 800; }
+
+/* ── tab colours ────────────────────────────────────────────────────────── */
+.tab-overview .rail-icon,
+.tab-overview .tile-icon,
+.tab-overview .tile-value,
+.tab-overview .graph,
+.tab-overview .placeholder-icon { color: @c_overview; }
+.tab-cpu .rail-icon,
+.tab-cpu .tile-icon,
+.tab-cpu .tile-value,
+.tab-cpu .graph,
+.tab-cpu .placeholder-icon { color: @c_cpu; }
+.tab-memory .rail-icon,
+.tab-memory .tile-icon,
+.tab-memory .tile-value,
+.tab-memory .graph,
+.tab-memory .placeholder-icon { color: @c_memory; }
+.tab-processes .rail-icon,
+.tab-processes .tile-icon,
+.tab-processes .tile-value,
+.tab-processes .graph,
+.tab-processes .placeholder-icon { color: @c_processes; }
+.tab-disks .rail-icon,
+.tab-disks .tile-icon,
+.tab-disks .tile-value,
+.tab-disks .graph,
+.tab-disks .placeholder-icon { color: @c_disks; }
+.tab-network .rail-icon,
+.tab-network .tile-icon,
+.tab-network .tile-value,
+.tab-network .graph,
+.tab-network .placeholder-icon { color: @c_network; }
+.tab-gpu .rail-icon,
+.tab-gpu .tile-icon,
+.tab-gpu .tile-value,
+.tab-gpu .graph,
+.tab-gpu .placeholder-icon { color: @c_gpu; }
+.tab-sensors .rail-icon,
+.tab-sensors .tile-icon,
+.tab-sensors .tile-value,
+.tab-sensors .graph,
+.tab-sensors .placeholder-icon { color: @c_sensors; }
+.tab-services .rail-icon,
+.tab-services .tile-icon,
+.tab-services .tile-value,
+.tab-services .graph,
+.tab-services .placeholder-icon { color: @c_services; }
+.tab-trails .rail-icon,
+.tab-trails .tile-icon,
+.tab-trails .tile-value,
+.tab-trails .graph,
+.tab-trails .placeholder-icon { color: @c_trails; }
+
+.rail row.tab-overview:selected  { background-color: alpha(@c_overview, 0.20); }
+.rail row.tab-cpu:selected       { background-color: alpha(@c_cpu, 0.20); }
+.rail row.tab-memory:selected    { background-color: alpha(@c_memory, 0.20); }
+.rail row.tab-processes:selected { background-color: alpha(@c_processes, 0.20); }
+.rail row.tab-disks:selected     { background-color: alpha(@c_disks, 0.20); }
+.rail row.tab-network:selected   { background-color: alpha(@c_network, 0.20); }
+.rail row.tab-gpu:selected       { background-color: alpha(@c_gpu, 0.20); }
+.rail row.tab-sensors:selected   { background-color: alpha(@c_sensors, 0.20); }
+.rail row.tab-services:selected  { background-color: alpha(@c_services, 0.20); }
+.rail row.tab-trails:selected    { background-color: alpha(@c_trails, 0.20); }
+
+/* The theme paints a selected row's text in the selection fg (white); here
+   the selection is a pale tab tint, so keep the normal text colour. */
+.rail row:selected { color: inherit; }

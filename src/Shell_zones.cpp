@@ -2,27 +2,21 @@
 #include "Log.hpp"
 
 #include <gtkmm/headerbar.h>
+#include <gtkmm/image.h>
 #include <gtkmm/label.h>
-#include <gtkmm/scrolledwindow.h>
-#include <gtkmm/gestureclick.h>
-#include <gtkmm/gesturedrag.h>
-#include <gtkmm/eventcontrollerfocus.h>
 
 // Shell_zones.cpp -- ZONES. Construction of the named regions: the window frame
-// and header, the sidebar+stack body, the pattern pages, and the menu model.
+// and header, the tab rail + stack, the Overview tiles, the placeholder pages,
+// and the menu model.
 
 namespace trails {
 
-void Shell::build_shell() {  // zone: window + sidebar + stack
+void Shell::build_shell() {  // zone: window + rail + stack
     set_title("Trails");
-    set_default_size(760, 520);
+    set_default_size(1100, 720);
+    add_css_class("trails");
 
     auto header = Gtk::make_managed<Gtk::HeaderBar>();
-
-    // Brand logo at the start: a frameless button whose icon is a symbolic
-    // resource resolved from the compiled-in bundle (App registers it), so this
-    // one button exercises the resource pipeline. Click opens the About window
-    // (the dialog-lifetime exemplar).
     m_logo_button.set_icon_name("trails-logo-symbolic");
     m_logo_button.set_has_frame(false);
     m_logo_button.set_tooltip_text("About Trails");
@@ -34,185 +28,128 @@ void Shell::build_shell() {  // zone: window + sidebar + stack
     header->pack_end(m_menu_button);
     set_titlebar(*header);
 
-    // StackSidebar drives the Stack: adding a page with a title makes a sidebar
-    // row automatically. That IS the Stack/StackSidebar paradigm -- no manual
-    // row wiring.
-    m_sidebar.set_stack(m_stack);
-    m_sidebar.set_size_request(160, -1);
+    build_rail();
     m_stack.set_hexpand(true);
     m_stack.set_vexpand(true);
+    m_stack.set_transition_type(Gtk::StackTransitionType::CROSSFADE);
+    m_stack.set_transition_duration(120);
+    m_stack.add_css_class("pages");
 
-    m_body.append(m_sidebar);
+    m_body.append(m_rail_scroll);
     m_body.append(m_stack);
     set_child(m_body);
 }
 
-void Shell::build_pages() {  // zone: the pattern pages
-    // Page 1 -- Recents: a live list + explanation. The menu's Open-recent
-    // submenu and this list are the same data, two surfaces (CANON: two
-    // surfaces, one mechanism).
-    auto intro = Gtk::make_managed<Gtk::Label>();
-    intro->set_wrap(true);
-    intro->set_xalign(0.0f);
-    intro->set_margin(12);
-    intro->set_markup(
-        "<b>Recent menu</b> -- actions + a JSON pump, composed.\n\n"
-        "Use the menu (top-right) -> \"Remember a folder...\" to add one. It "
-        "appears here and under \"Open recent\", persists to a JSON file in the "
-        "XDG data dir, and prunes entries whose folder has since vanished.\n\n"
-        "The list is core data; the UI resolves the path and drives the menu. "
-        "See docs/two-layer-seam.md and core/Recents.hpp.");
-    m_recents_page.append(*intro);
-
-    m_recents_list.set_selection_mode(Gtk::SelectionMode::NONE);
-    m_recents_scroll.set_child(m_recents_list);
-    m_recents_scroll.set_policy(Gtk::PolicyType::NEVER, Gtk::PolicyType::AUTOMATIC);
-    m_recents_scroll.set_vexpand(true);
-    m_recents_page.append(m_recents_scroll);
-    m_stack.add(m_recents_page, "recents", "Recent menu");
-
-    // Page 2 -- Registry: the debuggability payoff. The button dumps the live
-    // name->widget tree to the log (also callable from gdb as registry::dump()).
-    auto reg = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, 12);
-    reg->set_margin(12);
-    auto reg_intro = Gtk::make_managed<Gtk::Label>();
-    reg_intro->set_wrap(true);
-    reg_intro->set_xalign(0.0f);
-    reg_intro->set_markup(
-        "<b>Registry</b> -- the live address book Named&lt;W&gt; fills.\n\n"
-        "Every widget here was named at construction and registered by "
-        "Named&lt;W&gt;. \"Dump\" prints the live tree -- the same call is your "
-        "friend in gdb when a backtrace frame is otherwise a bare pointer. See "
-        "docs/widget-naming.md for why this is the LIGHT half of naming.");
-    auto dump_btn = Gtk::make_managed<Gtk::Button>("Dump registry to the log");
-    dump_btn->set_halign(Gtk::Align::START);
-    dump_btn->set_action_name("win.dump-registry");
-    reg->append(*reg_intro);
-    reg->append(*dump_btn);
-    m_stack.add(*reg, "registry", "Registry");
-
-    build_undo_page();   // s046
+// The rail: a ListBox, not a StackSidebar, because each row carries a big
+// coloured icon (StackSidebar shows text only). Rows are built from
+// core::tab_registry() -- the same list the pages and the Alt+N keys read.
+void Shell::build_rail() {  // zone: the tab rail
+    m_rail.add_css_class("rail");
+    m_rail.set_selection_mode(Gtk::SelectionMode::BROWSE);
+    for (const auto& t : core::tab_registry()) {
+        auto row = Gtk::make_managed<Gtk::ListBoxRow>();
+        row->set_name(std::string(t.id));
+        row->add_css_class(std::string(t.css));
+        auto box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 12);
+        auto icon = Gtk::make_managed<Gtk::Image>();
+        icon->set_from_icon_name(std::string(t.icon));
+        icon->set_pixel_size(28);
+        icon->add_css_class("rail-icon");
+        auto label = Gtk::make_managed<Gtk::Label>(std::string(t.title));
+        label->set_xalign(0.0f);
+        label->add_css_class("rail-label");
+        box->append(*icon);
+        box->append(*label);
+        row->set_child(*box);
+        m_rail.append(*row);
+    }
+    m_rail.signal_row_selected().connect([this](Gtk::ListBoxRow* row) {
+        if (m_syncing || !row) return;
+        on_tab(std::string(row->get_name()));
+    });
+    m_rail_scroll.set_child(m_rail);
+    m_rail_scroll.set_policy(Gtk::PolicyType::NEVER, Gtk::PolicyType::AUTOMATIC);
+    m_rail_scroll.set_size_request(210, -1);
+    m_rail_scroll.add_css_class("rail-scroll");
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// The Undo page (s046) -- the undo stone, exercised. A list of stones; every
-// button, the name field and the size slider are user choices, and every one
-// is a step (core/Undo.hpp, docs/undo.md). Try: delete a stone and press
-// Ctrl+Z without clicking anything; drag the slider and undo once; tap the
-// arrow keys on the slider and undo once.
-// ─────────────────────────────────────────────────────────────────────────────
-void Shell::build_undo_page() {  // zone: the Undo page
-    m_undo_page.set_margin(12);
+void Shell::build_pages() {  // zone: one stack page per tab
+    for (const auto& t : core::tab_registry()) {
+        Gtk::Widget& page = (t.id == "overview") ? build_overview() : build_placeholder(t);
+        m_stack.add(page, std::string(t.id), std::string(t.title));
+    }
+}
 
-    auto intro = Gtk::make_managed<Gtk::Label>();
-    intro->set_wrap(true);
-    intro->set_xalign(0.0f);
-    intro->set_markup(
-        "<b>Undo</b> -- every user choice is a step, through one door.\n\n"
-        "Add, delete, move, rename, resize: <b>Ctrl+Z</b> takes any of them back, "
-        "from anywhere but a text box (the name field keeps its own). A slider "
-        "<i>drag</i> is one step; arrow presses within 1.5 s merge into one. See "
-        "core/Undo.hpp and docs/undo.md.");
-    m_undo_page.append(*intro);
+Gtk::Widget& Shell::build_overview() {  // zone: the Overview tiles
+    m_tiles.set_selection_mode(Gtk::SelectionMode::NONE);
+    m_tiles.set_homogeneous(true);
+    m_tiles.set_min_children_per_line(1);
+    m_tiles.set_max_children_per_line(3);
+    m_tiles.set_row_spacing(16);
+    m_tiles.set_column_spacing(16);
+    m_tiles.set_valign(Gtk::Align::START);
+    m_tiles.add_css_class("tiles");
 
-    // Verbs.
-    auto verbs = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 6);
-    const auto verb = [&](const char* label, const char* action, const char* name) {
-        auto b = Gtk::make_managed<Gtk::Button>(label);
-        b->set_name(name);
-        b->set_action_name(action);
-        verbs->append(*b);
-    };
-    verb("Add", "win.stone-add", "shell.undo.add");
-    verb("Delete", "win.stone-delete", "shell.undo.delete");
-    verb("Up", "win.stone-up", "shell.undo.up");
-    verb("Down", "win.stone-down", "shell.undo.down");
-    auto spacer = Gtk::make_managed<Gtk::Box>();
-    spacer->set_hexpand(true);
-    verbs->append(*spacer);
-    m_undo_button.set_label("Undo");
-    m_undo_button.set_action_name("win.undo");
-    m_redo_button.set_label("Redo");
-    m_redo_button.set_action_name("win.redo");
-    verbs->append(m_undo_button);
-    verbs->append(m_redo_button);
-    m_undo_page.append(*verbs);
+    for (auto [tile, tab] : {std::pair{&m_tile_cpu, "cpu"}, std::pair{&m_tile_mem, "memory"},
+                             std::pair{&m_tile_disk, "disks"}, std::pair{&m_tile_net, "network"},
+                             std::pair{&m_tile_procs, "processes"}}) {
+        tile->set_size_request(300, -1);
+        const std::string id = tab;
+        tile->signal_clicked().connect([this, id] { on_tab(id); });
+        m_tiles.append(*tile);
+    }
+    m_tile_cpu.graph().set_scale(widgets::Graph::Scale::Percent);
+    m_tile_mem.graph().set_scale(widgets::Graph::Scale::Percent);
+    m_tile_disk.graph().set_scale(widgets::Graph::Scale::Auto, 1024.0 * 1024.0);   // 1 MiB/s floor
+    m_tile_net.graph().set_scale(widgets::Graph::Scale::Auto, 64.0 * 1024.0);      // 64 KiB/s floor
+    m_tile_procs.set_has_graph(false);
 
-    // The list.
-    auto scroll = Gtk::make_managed<Gtk::ScrolledWindow>();
-    scroll->set_policy(Gtk::PolicyType::NEVER, Gtk::PolicyType::AUTOMATIC);
-    scroll->set_vexpand(true);
-    scroll->set_child(m_stone_list);
-    m_stone_list.set_selection_mode(Gtk::SelectionMode::SINGLE);
-    m_stone_list.signal_row_selected().connect([this](Gtk::ListBoxRow* row) {
-        if (m_painting) return;
-        m_sel = row ? std::string(row->get_name()) : std::string{};
-        repaint_stones();   // the detail fields follow the selection
-    });
-    m_undo_page.append(*scroll);
+    auto page = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, 0);
+    page->add_css_class("page");
+    page->append(m_tiles);
+    m_overview_scroll.set_child(*page);
+    m_overview_scroll.set_policy(Gtk::PolicyType::NEVER, Gtk::PolicyType::AUTOMATIC);
+    return m_overview_scroll;
+}
 
-    // Detail: name + size.
-    auto detail = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 8);
-    auto nl = Gtk::make_managed<Gtk::Label>("Name");
-    m_stone_name.set_hexpand(true);
-    m_stone_name.set_valign(Gtk::Align::CENTER);
-    m_stone_name.signal_activate().connect(sigc::mem_fun(*this, &Shell::on_stone_rename));
-    auto leave = Gtk::EventControllerFocus::create();
-    leave->signal_leave().connect(sigc::mem_fun(*this, &Shell::on_stone_rename));
-    m_stone_name.add_controller(leave);
-    auto sl = Gtk::make_managed<Gtk::Label>("Size");
-    m_stone_size.set_range(1, 10);
-    m_stone_size.set_increments(1, 1);
-    m_stone_size.set_digits(0);
-    m_stone_size.set_round_digits(0);
-    m_stone_size.set_draw_value(true);
-    m_stone_size.set_size_request(180, -1);
-    m_stone_size.set_valign(Gtk::Align::CENTER);
-    m_stone_size.signal_value_changed().connect(sigc::mem_fun(*this, &Shell::on_stone_size));
-    // A drag is ONE step: open the gesture at press, close it at release.
-    // CAPTURE, so it sees the press before the slider's own gesture claims
-    // it; a claimed sequence arrives here as cancel -- also the end.
-    auto drag = Gtk::GestureDrag::create();
-    drag->set_propagation_phase(Gtk::PropagationPhase::CAPTURE);
-    drag->signal_drag_begin().connect([this](double, double) {
-        if (!m_sel.empty()) core::stones::drag_begin(m_journal, m_stones, m_sel);
-    });
-    const auto end = [this]() { core::stones::drag_end(m_journal); };
-    drag->signal_drag_end().connect([end](double, double) { end(); });
-    drag->signal_cancel().connect([end](const Gdk::EventSequence*) { end(); });
-    m_stone_size.add_controller(drag);
-    detail->append(*nl);
-    detail->append(m_stone_name);
-    detail->append(*sl);
-    detail->append(m_stone_size);
-    m_undo_page.append(*detail);
+// A tab that isn't built yet still looks like itself: its big coloured icon,
+// its name, what it will show, and which session brings it.
+Gtk::Widget& Shell::build_placeholder(const core::TabSpec& t) {  // zone
+    auto page = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, 12);
+    page->set_name("page." + std::string(t.id));
+    page->add_css_class("page");
+    page->add_css_class("placeholder");
+    page->add_css_class(std::string(t.css));
+    page->set_valign(Gtk::Align::CENTER);
+    page->set_halign(Gtk::Align::CENTER);
 
-    m_undo_said.set_xalign(0.0f);
-    m_undo_said.add_css_class("dim-label");
-    m_undo_page.append(m_undo_said);
+    auto icon = Gtk::make_managed<Gtk::Image>();
+    icon->set_from_icon_name(std::string(t.icon));
+    icon->set_pixel_size(112);
+    icon->add_css_class("placeholder-icon");
+    auto title = Gtk::make_managed<Gtk::Label>(std::string(t.title));
+    title->add_css_class("placeholder-title");
+    auto blurb = Gtk::make_managed<Gtk::Label>(std::string(t.blurb));
+    blurb->set_wrap(true);
+    blurb->set_max_width_chars(48);
+    blurb->set_justify(Gtk::Justification::CENTER);
+    auto when = Gtk::make_managed<Gtk::Label>("Arrives in " + std::string(t.arrives));
+    when->add_css_class("dim-label");
 
-    m_stack.add(m_undo_page, "undo", "Undo");
+    page->append(*icon);
+    page->append(*title);
+    page->append(*blurb);
+    page->append(*when);
+    return *page;
 }
 
 Glib::RefPtr<Gio::Menu> Shell::build_menu() {  // zone: hamburger model
     auto menu = Gio::Menu::create();
 
-    auto file = Gio::Menu::create();
-    file->append("Remember a folder\u2026", "win.pick-folder");
-    m_recents_menu = Gio::Menu::create();
-    file->append_submenu("Open recent", m_recents_menu);
-    menu->append_section(file);
-
-    // s046: Undo / Redo, re-labelled live ("Undo Delete “Jade”") and greyed
-    // when there is nothing to do -- update_undo_ui() owns this section.
-    m_edit_menu = Gio::Menu::create();
-    m_edit_menu->append("Undo", "win.undo");
-    m_edit_menu->append("Redo", "win.redo");
-    menu->append_section(m_edit_menu);
-
-    auto diag = Gio::Menu::create();
-    diag->append("Dump registry", "win.dump-registry");
-    menu->append_section(diag);
+    auto help = Gio::Menu::create();
+    help->append("Keyboard Shortcuts", "win.shortcuts");
+    help->append("Dump registry", "win.dump-registry");
+    menu->append_section(help);
 
     auto app = Gio::Menu::create();
     app->append("About Trails", "win.about");

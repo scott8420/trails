@@ -7,6 +7,8 @@
 #include "Log.hpp"
 
 #include <gtkmm/icontheme.h>
+#include <gtkmm/cssprovider.h>
+#include <gtkmm/stylecontext.h>
 #include <gdkmm/display.h>
 
 // The RESOURCE-PIPELINE paradigm's build-side seam. The app logo ships in a
@@ -63,6 +65,18 @@ void App::on_activate() {
     if (auto display = Gdk::Display::get_default()) {
         auto icons = Gtk::IconTheme::get_for_display(display);
         icons->add_resource_path("/io/github/scott8420/Trails/icons");
+
+        // s003: the skin, out of the same bundle. APPLICATION priority so it
+        // wins over the theme but a user's gtk.css can still override.
+        auto css = Gtk::CssProvider::create();
+        css->signal_parsing_error().connect(
+            [](const Glib::RefPtr<const Gtk::CssSection>& sec, const Glib::Error& e) {
+                if (auto lg = log::get(log::Area::App))
+                    lg->warn("trails.css:{}: {}", sec->get_start_location().get_lines() + 1, e.what());
+            });
+        css->load_from_resource("/io/github/scott8420/Trails/trails.css");
+        Gtk::StyleContext::add_provider_for_display(display, css,
+                                                    GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
 
     m_shell = new Shell();       // lifetime owned by the application

@@ -1,0 +1,109 @@
+#include "Shell.hpp"
+#include "Log.hpp"
+#include "core/Format.hpp"
+
+#include <glibmm/main.h>
+
+#include <cstdio>
+
+// Shell_live.cpp -- LIVE. The sampler -> screen path (s003).
+//
+// The Sampler runs on its own thread and publishes an immutable Snapshot once
+// a second. The UI polls snapshot() on a short timer (an atomic pointer load,
+// no lock) and paints only when the sequence number moved -- so the main loop
+// never waits on /proc, and a slow paint can never stall sampling.
+
+namespace trails {
+
+namespace {
+constexpr unsigned kFrameMs = 250;   // poll 4x per sample: a new snapshot shows within 1/4 s
+
+std::vector<float> hist(const core::Snapshot& s, const char* id) {
+    const auto* r = s.find(id);
+    return r ? r->to_vector() : std::vector<float>{};
+}
+std::size_t cap(const core::Snapshot& s, const char* id) {
+    const auto* r = s.find(id);
+    return r ? r->capacity() : 300;
+}
+std::string two(double v) {
+    char b[16];
+    std::snprintf(b, sizeof b, "%.2f", v);
+    return b;
+}
+}  // namespace
+
+void Shell::start_sampling() {  // live: Sampler + frame tick up
+    if (m_sampler) return;
+    m_sampler = std::make_unique<core::Sampler>();   // "/", 1 s, 300 samples
+    m_sampler->start();
+    m_frame = Glib::signal_timeout().connect(sigc::mem_fun(*this, &Shell::on_frame), kFrameMs);
+    if (auto lg = log::get(log::Area::Shell))
+        lg->info("sampling every {} ms", m_sampler->interval().count());
+}
+
+void Shell::stop_sampling() {  // live: both down (idempotent)
+    m_frame.disconnect();
+    if (m_sampler) {
+        m_sampler->stop();
+        m_sampler.reset();
+        if (auto lg = log::get(log::Area::Shell)) lg->info("sampling stopped");
+    }
+}
+
+bool Shell::on_frame() {  // live: new snapshot? paint it
+    if (!m_sampler) return false;
+    auto snap = m_sampler->snapshot();
+    if (!snap || snap->seq == m_painted_seq) return true;
+    m_painted_seq = snap->seq;
+    if (!snap->error.empty())
+        if (auto lg = log::get(log::Area::Io)) lg->warn("sample {}: unread {}", snap->seq, snap->error);
+    // Only the visible page is painted; the others catch up when shown.
+    if (m_stack.get_visible_child_name() == "overview") paint_overview(*snap);
+    return true;
+}
+
+void Shell::paint_overview(const core::Snapshot& s) {  // live: tiles from a snapshot
+    namespace fmt = core::fmt;
+    const bool r = s.rates_valid;
+
+    // CPU
+    m_tile_cpu.set_value(r ? fmt::pct(s.cpu.busy) : "--");
+    m_tile_cpu.set_detail(std::to_string(s.n_cpus) + " cores · load " + two(s.load.one) +
+                          "  " + two(s.load.five) + "  " + two(s.load.fifteen));
+    m_tile_cpu.graph().set_series(hist(s, "cpu.total"), {}, cap(s, "cpu.total"));
+
+    // Memory
+    m_tile_mem.set_value(fmt::bytes(s.mem.used()));
+    std::string md = "of " + fmt::bytes(s.mem.total) + " · cache " +
+                     fmt::bytes(s.mem.cached + s.mem.buffers);
+    if (s.mem.swap_total) md += " · swap " + fmt::bytes(s.mem.swap_used());
+    m_tile_mem.set_detail(md);
+    m_tile_mem.graph().set_series(hist(s, "mem.used_pct"), {}, cap(s, "mem.used_pct"));
+
+    // Disks: read filled, write as the line.
+    m_tile_disk.set_value(r ? fmt::rate(s.disk_read_bps + s.disk_write_bps) : "--");
+    m_tile_disk.set_detail("read " + fmt::rate(s.disk_read_bps) +
+                           " · write " + fmt::rate(s.disk_write_bps));
+    m_tile_disk.graph().set_series(hist(s, "disk.read"), hist(s, "disk.write"), cap(s, "disk.read"));
+
+    // Network: down filled, up as the line.
+    m_tile_net.set_value(r ? fmt::rate(s.net_rx_bps + s.net_tx_bps) : "--");
+    m_tile_net.set_detail("down " + fmt::rate(s.net_rx_bps) +
+                          " · up " + fmt::rate(s.net_tx_bps));
+    m_tile_net.graph().set_series(hist(s, "net.rx"), hist(s, "net.tx"), cap(s, "net.rx"));
+
+    // Processes: count, threads, the busiest.
+    long threads = 0;
+    const core::ProcRow* top = nullptr;
+    for (const auto& p : s.procs) {
+        threads += p.threads;
+        if (!top || p.cpu_pct > top->cpu_pct) top = &p;
+    }
+    m_tile_procs.set_value(std::to_string(s.procs.size()));
+    std::string pd = std::to_string(threads) + " threads";
+    if (r && top) pd += " · busiest " + top->name + " " + fmt::pct(top->cpu_pct);
+    m_tile_procs.set_detail(pd);
+}
+
+}  // namespace trails

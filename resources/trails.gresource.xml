@@ -13,5 +13,20 @@
 <gresources>
   <gresource prefix="/io/github/scott8420/Trails/icons/scalable/apps">
     <file preprocess="xml-stripblanks" alias="trails-logo-symbolic.svg">icons/scalable/apps/trails-logo-symbolic.svg</file>
+    <!-- s003: one per tab, named in core/Tabs.cpp -->
+    <file preprocess="xml-stripblanks" alias="trails-tab-overview-symbolic.svg">icons/scalable/apps/trails-tab-overview-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-tab-cpu-symbolic.svg">icons/scalable/apps/trails-tab-cpu-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-tab-memory-symbolic.svg">icons/scalable/apps/trails-tab-memory-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-tab-processes-symbolic.svg">icons/scalable/apps/trails-tab-processes-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-tab-disks-symbolic.svg">icons/scalable/apps/trails-tab-disks-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-tab-network-symbolic.svg">icons/scalable/apps/trails-tab-network-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-tab-gpu-symbolic.svg">icons/scalable/apps/trails-tab-gpu-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-tab-sensors-symbolic.svg">icons/scalable/apps/trails-tab-sensors-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-tab-services-symbolic.svg">icons/scalable/apps/trails-tab-services-symbolic.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-tab-trails-symbolic.svg">icons/scalable/apps/trails-tab-trails-symbolic.svg</file>
+  </gresource>
+  <!-- s003: the skin. Loaded by App::on_activate at APPLICATION priority. -->
+  <gresource prefix="/io/github/scott8420/Trails">
+    <file>trails.css</file>
   </gresource>
 </gresources>

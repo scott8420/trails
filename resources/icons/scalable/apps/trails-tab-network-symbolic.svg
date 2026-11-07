@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- Trails tab icon (network). First pass, s003; Rouster's art replaces it.
+       currentColor so the tab's CSS colour paints it. -->
+  <g fill="currentColor"><path d="M8 2.5c2.7 0 5.2 1 7 2.8l-1.2 1.2A8.3 8.3 0 0 0 8 4.2a8.3 8.3 0 0 0-5.8 2.3L1 5.3a10 10 0 0 1 7-2.8z"/><path d="M8 6.2c1.7 0 3.3.6 4.5 1.8l-1.2 1.2A4.7 4.7 0 0 0 8 7.9a4.7 4.7 0 0 0-3.3 1.3L3.5 8A6.4 6.4 0 0 1 8 6.2z"/><circle cx="8" cy="12" r="2"/></g>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- Trails tab icon (cpu). First pass, s003; Rouster's art replaces it.
+       currentColor so the tab's CSS colour paints it. -->
+  <g fill="currentColor"><path d="M5 0h1v2.5H5zM7.5 0h1v2.5h-1zM10 0h1v2.5h-1zM5 13.5h1V16H5zM7.5 13.5h1V16h-1zM10 13.5h1V16h-1zM0 5h2.5v1H0zM0 7.5h2.5v1H0zM0 10h2.5v1H0zM13.5 5H16v1h-2.5zM13.5 7.5H16v1h-2.5zM13.5 10H16v1h-2.5z"/><path fill-rule="evenodd" d="M4.5 2.5h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM5.5 5.5v5h5v-5z"/></g>
+</svg>

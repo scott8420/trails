@@ -12,41 +12,31 @@ Shell::Shell()
     : m_logo_button("shell.logo_button"),
       m_menu_button("shell.menu_button"),
       m_body("shell.body", Gtk::Orientation::HORIZONTAL),
-      m_sidebar("shell.sidebar"),
+      m_rail_scroll("shell.rail_scroll"),
+      m_rail("shell.rail"),
       m_stack("shell.stack"),
-      m_recents_page("shell.recents_page", Gtk::Orientation::VERTICAL),
-      m_recents_scroll("shell.recents_scroll"),
-      m_recents_list("shell.recents_list"),
-      m_undo_page("shell.undo.page", Gtk::Orientation::VERTICAL, 8),
-      m_stone_list("shell.undo.list"),
-      m_stone_name("shell.undo.name"),
-      m_stone_size("shell.undo.size", Gtk::Orientation::HORIZONTAL),
-      m_undo_button("shell.undo.undo"),
-      m_redo_button("shell.undo.redo"),
-      m_undo_said("shell.undo.said") {
+      m_overview_scroll("overview.scroll"),
+      m_tile_cpu("overview.cpu", "CPU", "trails-tab-cpu-symbolic", "tab-cpu"),
+      m_tile_mem("overview.memory", "Memory", "trails-tab-memory-symbolic", "tab-memory"),
+      m_tile_disk("overview.disks", "Disks", "trails-tab-disks-symbolic", "tab-disks"),
+      m_tile_net("overview.network", "Network", "trails-tab-network-symbolic", "tab-network"),
+      m_tile_procs("overview.processes", "Processes", "trails-tab-processes-symbolic",
+                   "tab-processes") {
     set_name("shell.window");
 }
 
-Shell::~Shell() = default;
+Shell::~Shell() { stop_sampling(); }
 
-// The ordered pass Scott's Controller/MainWindow shape names: construct the
-// shell, build the pages, bind actions + accelerators, load persisted state,
-// paint. Each step is one call into a category file.
+// The ordered pass: construct the shell, build the pages, bind actions, then
+// start the sampler -- last, so the first frame finds every tile built.
 void Shell::build_ui() {
     build_shell();     // zone
     build_pages();     // zone
     bind_actions();    // bindings
+    start_sampling();  // live
+    on_tab("overview");
 
-    // Load persisted recents (the UI resolves the XDG path -- the seam -- and
-    // hands the core a plain string), then paint both surfaces.
-    m_recents_file = recents_file();
-    // m_recents filled by note_recent / load; load happens in bind_actions after
-    // the action group exists so a click can route. Paint whatever's there.
-    rebuild_recents_menu();
-    rebuild_recents_page();
-
-    if (auto lg = log::get(log::Area::Shell))
-        lg->info("ready -- {} widget(s) registered", 0);  // dump-registry shows the real count
+    if (auto lg = log::get(log::Area::Shell)) lg->info("ready");
 }
 
 }  // namespace trails

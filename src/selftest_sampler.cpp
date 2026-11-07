@@ -10,6 +10,7 @@
 #include "core/probe/Probe.hpp"
 #include "core/series/Ring.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <filesystem>
@@ -404,5 +405,63 @@ void run_sampler_tests(const Check& check) {
         sm.set_interval(milliseconds(10));
         check("thread: interval floor is 50 ms", sm.interval() == milliseconds(50),
               std::to_string(sm.interval().count()));
+    }
+}
+
+// ── s003: the tab list, value formatting, tabs <-> Alt+N ─────────────────────
+#include "core/Format.hpp"
+#include "core/Shortcuts.hpp"
+#include "core/Tabs.hpp"
+
+#include <set>
+
+void run_shell_core_tests(const Check& check) {
+    namespace fmt = trails::core::fmt;
+    const auto& tabs = trails::core::tab_registry();
+
+    {
+        std::set<std::string_view> ids, css, icons;
+        bool fields = true;
+        for (const auto& t : tabs) {
+            ids.insert(t.id); css.insert(t.css); icons.insert(t.icon);
+            fields = fields && !t.title.empty() && !t.blurb.empty() &&
+                     t.icon.ends_with("-symbolic") && t.css == "tab-" + std::string(t.id);
+        }
+        check("tabs: ten, ids / icons / colour classes unique",
+              tabs.size() == 10 && ids.size() == 10 && css.size() == 10 && icons.size() == 10,
+              std::to_string(tabs.size()));
+        check("tabs: every tab has title, blurb, symbolic icon, tab-<id> class", fields, "");
+        check("tabs: Overview first and built; the rest name their session",
+              tabs.front().id == "overview" && tabs.front().arrives.empty() &&
+              std::all_of(tabs.begin() + 1, tabs.end(),
+                          [](const auto& t) { return t.arrives.starts_with("s"); }), "");
+        check("tabs: find_tab hits and misses",
+              trails::core::find_tab("cpu") && trails::core::find_tab("cpu")->title == "CPU" &&
+              !trails::core::find_tab("nope"), "");
+    }
+    {
+        // Each tab is reachable by one Alt+N row, in rail order.
+        std::vector<std::string> rows;
+        for (const auto& s : trails::core::shortcut_registry())
+            if (s.action.starts_with("win.tab::")) rows.push_back(s.action.substr(9));
+        bool same = rows.size() == tabs.size();
+        for (std::size_t i = 0; same && i < rows.size(); ++i) same = rows[i] == tabs[i].id;
+        check("tabs: Alt+N shortcut rows match the tab list, in order", same,
+              std::to_string(rows.size()) + " rows");
+    }
+    {
+        check("fmt: bytes edges",
+              fmt::bytes(0) == "0 B" && fmt::bytes(1023) == "1023 B" &&
+              fmt::bytes(1024) == "1.00 KiB" && fmt::bytes(1536) == "1.50 KiB",
+              fmt::bytes(1536));
+        check("fmt: three significant figures",
+              fmt::bytes(16000000ull * 1024) == "15.3 GiB" && fmt::bytes(300ull * 1024 * 1024) == "300 MiB",
+              fmt::bytes(16000000ull * 1024) + " / " + fmt::bytes(300ull * 1024 * 1024));
+        check("fmt: rounding to 1024 steps up a unit",
+              fmt::bytes(1024ull * 1024 - 1) == "1.00 MiB", fmt::bytes(1024ull * 1024 - 1));
+        check("fmt: rate", fmt::rate(0) == "0 B/s" && fmt::rate(1048576) == "1.00 MiB/s" &&
+                           fmt::rate(-5) == "0 B/s", fmt::rate(1048576));
+        check("fmt: pct", fmt::pct(0) == "0%" && fmt::pct(7.46) == "7.5%" && fmt::pct(42.4) == "42%" &&
+                          fmt::pct(250) == "100%", fmt::pct(7.46));
     }
 }
