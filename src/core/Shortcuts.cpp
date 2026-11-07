@@ -111,6 +111,10 @@ const std::vector<ShortcutSpec>& shortcut_registry() {
         {"Diagnostics", "win.dump-registry", {"<Ctrl>d"}, "",
          "Dump the widget registry to the log"},
 
+        // ── Edit (s006) ───────────────────────────────────────────────────────
+        {"Edit", "win.undo", {"<Ctrl>z"}, "", "Undo the last process change (renice, affinity, stop)"},
+        {"Edit", "win.redo", {"<Ctrl><Shift>z"}, "", "Redo"},
+
         // ── General ───────────────────────────────────────────────────────────
         {"General", "win.shortcuts",     {"<Ctrl>question", "<Ctrl>slash"}, "",
          "Keyboard shortcuts (this window)"},
@@ -120,6 +124,13 @@ const std::vector<ShortcutSpec>& shortcut_registry() {
         // ── Mouse ─────────────────────────────────────────────────────────────
         // Doc-only: a gesture is not a GAction, but the reader still needs it.
         {"Mouse", "", {}, "Click a tile", "Open its tab"},
+        {"Mouse", "", {}, "Right-click a process", "Process actions"},
+
+        // ── Processes (s006) ──────────────────────────────────────────────────
+        // Doc-only: bound on the list itself, so Delete in the filter box still
+        // deletes text (a window-wide accel would take it).
+        {"Processes", "", {}, "Del", "Terminate the selected process (asks first)"},
+        {"Processes", "", {}, "Shift+Del", "Kill the selected process (asks first)"},
 
         // ── Tabs (s003) ───────────────────────────────────────────────────────
         // One row per core::tab_registry() entry, in rail order; the selftest

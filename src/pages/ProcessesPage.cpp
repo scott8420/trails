@@ -4,6 +4,12 @@
 #include "core/ProcView.hpp"
 
 #include <gtk/gtk.h>
+#include <giomm/menu.h>
+#include <gtkmm/gestureclick.h>
+#include <gtkmm/shortcut.h>
+#include <gtkmm/shortcutaction.h>
+#include <gtkmm/shortcutcontroller.h>
+#include <gtkmm/shortcuttrigger.h>
 #include <gtkmm/signallistitemfactory.h>
 #include <gtkmm/treeexpander.h>
 #include <gtkmm/treelistrow.h>
@@ -69,6 +75,7 @@ ProcessesPage::ProcessesPage() : Gtk::Box(Gtk::Orientation::VERTICAL, 12) {
     build_header();
     build_view();
     build_detail();
+    build_actions();
 
     m_paned.set_start_child(m_scroll);
     m_paned.set_end_child(m_detail);
@@ -253,8 +260,13 @@ void ProcessesPage::build_view() {
     m_sel->property_selected().signal_changed().connect([this] {
         if (m_restoring) return;
         const ProcItem* p = item_of(m_sel->get_selected_item());
-        m_selected_pid = p ? p->row.pid : -1;
+        const int pid = p ? p->row.pid : -1;
+        // A re-sort moves the selected row and fires this too: only a NEW
+        // process clears the last action's line (it belongs to the last one).
+        if (pid != m_selected_pid) set_status("", false);
+        m_selected_pid = pid;
         paint_detail();
+        if (m_on_pick) m_on_pick();
     });
     m_view.set_model(m_sel);
     m_view.add_css_class("data-table");
@@ -276,7 +288,10 @@ void ProcessesPage::build_detail() {
     m_d_title.set_xalign(0.0f);
     m_d_cmd.set_xalign(0.0f);
     m_d_cmd.set_wrap(true);
-    m_d_cmd.set_wrap_mode(Pango::WrapMode::WORD_CHAR);
+    // CHAR, not WORD_CHAR: GTK sizes a wrapping label's MINIMUM width by its
+    // longest word, so one long path in a command line (no spaces) widened
+    // the whole page past the window (s006 Xvfb look).
+    m_d_cmd.set_wrap_mode(Pango::WrapMode::CHAR);
     m_d_cmd.set_selectable(true);
     m_d_cmd.add_css_class("monospace");
     m_d_grid.set_column_spacing(20);
@@ -430,6 +445,114 @@ void ProcessesPage::paint_detail() {
                                 std::to_string(r.nice), std::to_string(r.threads), fmt::pct(r.cpu_pct),
                                 fmt::bytes(r.rss_bytes), files};
     for (int i = 0; i < 9; ++i) set(m_d_kv[std::size_t(i)][1], vals[i]);
+}
+
+// ── s006: actions ───────────────────────────────────────────────────────────
+
+void ProcessesPage::build_actions() {
+    // The row of buttons under the detail grid. Each names a win.* action, so
+    // GTK greys it when the Shell disables the action (nothing picked, a
+    // Continue on a running process...).
+    struct B { const char* label; const char* action; const char* tip; bool danger; };
+    static const B kButtons[] = {
+        {"Stop",       "win.proc-stop",      "Pause it (SIGSTOP). Ctrl+Z undoes.", false},
+        {"Continue",   "win.proc-continue",  "Resume a stopped process (SIGCONT). Ctrl+Z undoes.", false},
+        {"Renice\u2026", "win.proc-renice",   "Change its priority. Ctrl+Z undoes.", false},
+        {"Affinity\u2026", "win.proc-affinity", "Choose the CPUs it may run on. Ctrl+Z undoes.", false},
+        {"Terminate",  "win.proc-terminate", "Ask it to quit (SIGTERM). Del. Asks first; no undo.", true},
+        {"Kill",       "win.proc-kill",      "Stop it at once (SIGKILL). Shift+Del. Asks first; no undo.", true},
+    };
+    m_acts.set_margin_top(6);
+    for (const auto& b : kButtons) {
+        auto* btn = Gtk::make_managed<Gtk::Button>(b.label);
+        btn->set_action_name(b.action);
+        btn->set_tooltip_text(b.tip);
+        if (b.danger) btn->add_css_class("destructive-action");
+        m_acts.append(*btn);
+    }
+    m_status.set_xalign(0.0f);
+    m_status.set_hexpand(true);
+    m_status.set_margin_start(12);
+    m_status.set_ellipsize(Pango::EllipsizeMode::END);
+    m_acts.append(m_status);
+    m_detail.append(m_acts);
+
+    // Right-click: select the row under the pointer, then the same actions.
+    auto model = Gio::Menu::create();
+    auto knobs = Gio::Menu::create();
+    knobs->append("Stop", "win.proc-stop");
+    knobs->append("Continue", "win.proc-continue");
+    knobs->append("Renice\u2026", "win.proc-renice");
+    knobs->append("CPU Affinity\u2026", "win.proc-affinity");
+    model->append_section(knobs);
+    auto end = Gio::Menu::create();
+    end->append("Terminate\u2026", "win.proc-terminate");
+    end->append("Kill\u2026", "win.proc-kill");
+    model->append_section(end);
+    m_menu.set_menu_model(model);
+    m_menu.set_has_arrow(false);
+    m_menu.set_parent(m_view);
+
+    auto click = Gtk::GestureClick::create();
+    click->set_button(GDK_BUTTON_SECONDARY);
+    click->signal_pressed().connect([this](int, double x, double y) {
+        const int pid = pid_at(x, y);
+        if (pid < 0) return;
+        select_pid(pid);
+        Gdk::Rectangle r(int(x), int(y), 1, 1);
+        m_menu.set_pointing_to(r);
+        m_menu.popup();
+    });
+    m_view.add_controller(click);
+
+    // Keys on the list (not window-wide: Delete in the filter box deletes text).
+    auto keys = Gtk::ShortcutController::create();
+    keys->add_shortcut(Gtk::Shortcut::create(Gtk::KeyvalTrigger::create(GDK_KEY_Delete),
+                                             Gtk::NamedAction::create("win.proc-terminate")));
+    keys->add_shortcut(Gtk::Shortcut::create(
+        Gtk::KeyvalTrigger::create(GDK_KEY_Delete, Gdk::ModifierType::SHIFT_MASK),
+        Gtk::NamedAction::create("win.proc-kill")));
+    m_view.add_controller(keys);
+}
+
+int ProcessesPage::pid_at(double x, double y) {
+    // The picked widget is a cell (or something in one); its label is in
+    // m_bound, which knows the item. Walk up from the pick, looking down a
+    // little at each level, until the view itself.
+    std::function<int(Gtk::Widget*, int)> down = [&](Gtk::Widget* w, int depth) -> int {
+        if (!w) return -1;
+        if (auto* l = dynamic_cast<Gtk::Label*>(w))
+            if (auto it = m_bound.find(l); it != m_bound.end()) return it->second.item->row.pid;
+        if (depth == 0) return -1;
+        for (auto* c = w->get_first_child(); c; c = c->get_next_sibling())
+            if (int p = down(c, depth - 1); p >= 0) return p;
+        return -1;
+    };
+    for (Gtk::Widget* w = m_view.pick(x, y); w && w != &m_view; w = w->get_parent())
+        if (int p = down(w, 3); p >= 0) return p;
+    return -1;
+}
+
+void ProcessesPage::select_pid(int pid) {
+    if (pid == m_selected_pid) return;
+    m_selected_pid = pid;
+    set_status("", false);
+    restore_selection();
+    paint_detail();
+    if (m_on_pick) m_on_pick();
+}
+
+std::optional<ProcessesPage::Picked> ProcessesPage::picked() const {
+    auto it = m_selected_pid >= 0 ? m_items.find(m_selected_pid) : m_items.end();
+    if (it == m_items.end()) return std::nullopt;
+    const auto& r = it->second->row;
+    return Picked{r.pid, r.starttime, r.name, r.state, static_cast<int>(r.nice), r.kernel_thread};
+}
+
+void ProcessesPage::set_status(const std::string& text, bool error) {
+    set(m_status, text);
+    if (error) m_status.add_css_class("error");
+    else       m_status.remove_css_class("error");
 }
 
 }  // namespace trails::pages

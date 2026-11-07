@@ -56,6 +56,9 @@ add_library(trails_core STATIC
     src/core/Format.cpp
     # s005 -- the Processes tab's GTK-free half: tree index, filter, names.
     src/core/ProcView.cpp
+    # s006 -- process actions: the knob store the journal writes through, the
+    # syscalls (SysProcOS) and the verb table the selftest gate walks.
+    src/core/ProcActs.cpp
 )
 target_include_directories(trails_core PUBLIC include)
 # Vendored nlohmann/json (header-only, MIT), PRIVATE -- an implementation detail
@@ -63,8 +66,15 @@ target_include_directories(trails_core PUBLIC include)
 target_include_directories(trails_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
 # ── Headless selftest -- exercises the core with no display ────────────────────
-add_executable(trails_selftest src/selftest.cpp src/selftest_sampler.cpp)
+add_executable(trails_selftest src/selftest.cpp src/selftest_sampler.cpp src/selftest_procacts.cpp)
 find_package(Threads REQUIRED)
+
+# ── trails-helper -- the one thing that runs as root (s006) ────────────────────
+# pkexec runs it for actions on processes you don't own (and lowering nice).
+# No GTK, no spdlog: trails_core only. install.sh puts it in a root-owned
+# libexec and installs the polkit policy that names it.
+add_executable(trails-helper src/helper/trails_helper.cpp)
+target_link_libraries(trails-helper PRIVATE trails_core)
 target_link_libraries(trails_core PUBLIC Threads::Threads)
 target_link_libraries(trails_selftest PRIVATE trails_core)
 
@@ -111,6 +121,11 @@ add_executable(trails
     src/Shell_handlers.cpp
     src/Shell_helpers.cpp
     src/Shell_live.cpp
+    # s006 -- process actions: the verbs through the journal, the dialogs they
+    # ask, and the pkexec door to trails-helper.
+    src/Shell_acts.cpp
+    src/ActDialogs.cpp
+    src/Elevate.cpp
     src/widgets/Graph.cpp
     src/widgets/Tile.cpp
     src/widgets/Bar.cpp

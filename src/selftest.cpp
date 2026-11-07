@@ -35,6 +35,8 @@ void run_cpu_mem_tests(      // s004: cpufreq, clusters, swaps, zram
     const std::function<void(const std::string&, bool, const std::string&)>& check);
 void run_procview_tests(     // s005: process tree, filter, users, fds
     const std::function<void(const std::string&, bool, const std::string&)>& check);
+void run_procacts_tests(     // s006: process actions, the gate, real syscalls
+    const std::function<void(const std::string&, bool, const std::string&)>& check);
 
 namespace {
 int g_pass = 0, g_fail = 0;
@@ -415,6 +417,7 @@ int main() {
     run_shell_core_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
     run_cpu_mem_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
     run_procview_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
+    run_procacts_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
 
     std::cout << "-----------------------------------------------\n";
     std::cout << g_pass << " pass / " << g_fail << " fail\n";

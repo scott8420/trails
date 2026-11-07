@@ -7,9 +7,9 @@
 // Shell_handlers.cpp -- HANDLERS. Slot bodies: what a user action actually does.
 // Each is small and single-concern; orchestration it shares lives in helpers.
 //
-// Nothing here writes user data yet, so nothing goes through the undo journal:
-// switching tabs is navigation, not a choice that changes anything. The first
-// verbs that DO (renice, affinity, service enable) arrive in s006 through
+// Nothing here writes anything, so nothing goes through the undo journal:
+// switching tabs is navigation, not a choice that changes anything. The verbs
+// that DO change something live in Shell_acts.cpp (s006) and go through
 // Journal::run -- RULES "Undo from the first write".
 
 namespace trails {

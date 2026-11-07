@@ -57,6 +57,7 @@ struct ProcRow {
     int           threads = 0;
     std::int64_t  nice = 0;
     bool          kernel_thread = false;
+    std::uint64_t starttime = 0;  // ticks since boot -- with pid, the process's identity (s006)
 };
 
 struct Snapshot {

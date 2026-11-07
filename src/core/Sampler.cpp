@@ -167,7 +167,7 @@ std::shared_ptr<const Snapshot> Sampler::tick() {
         row.pid = ps.pid; row.ppid = ps.ppid; row.uid = ps.uid;
         row.name = ps.comm; row.state = ps.state;
         row.rss_bytes = ps.rss_bytes; row.threads = ps.threads;
-        row.nice = ps.nice; row.kernel_thread = ps.kernel_thread;
+        row.nice = ps.nice; row.kernel_thread = ps.kernel_thread; row.starttime = ps.starttime;
 
         auto it = procs_.find(pid);
         const bool same = it != procs_.end() && it->second.starttime == ps.starttime;

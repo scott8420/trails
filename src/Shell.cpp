@@ -34,6 +34,7 @@ void Shell::build_ui() {
     build_shell();     // zone
     build_pages();     // zone
     bind_actions();    // bindings
+    bind_acts();       // acts (s006)
     start_sampling();  // live
     on_tab("overview");
 

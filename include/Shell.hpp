@@ -6,12 +6,14 @@
 #include "pages/ProcessesPage.hpp"
 #include "core/Sampler.hpp"
 #include "core/Tabs.hpp"
+#include "core/ProcActs.hpp"
 
 #include <gtkmm/applicationwindow.h>
 #include <gtkmm/flowbox.h>
 #include <giomm/menu.h>
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 
@@ -35,6 +37,8 @@
 //   Live     -- the sampler -> screen path: start / stop the Sampler, the
 //               frame tick, painting a Snapshot into the tiles (s003).
 //               File: src/Shell_live.cpp
+//   Acts     -- the verbs that CHANGE something (s006): process actions and
+//               undo / redo, through the journal. File: src/Shell_acts.cpp
 //   Helpers  -- reusable sync called from the others.  File: src/Shell_helpers.cpp
 //   Glue     -- the ctor + build_ui() (the ordered pass). File: src/Shell.cpp
 //
@@ -47,6 +51,8 @@
 //                                            -> Shell_handlers.cpp (on_tab)
 //   "Where does the tab list come from?"  -> core/Tabs.cpp (one list for all of it)
 //   "Where is the CPU / Memory tab?"      -> pages/CpuPage, pages/MemoryPage (s004)
+//   "What does Terminate / Renice do?"    -> Shell_acts.cpp -> core/ProcActs (the verbs)
+//   "What runs as root?"                  -> src/helper/trails_helper.cpp, via Elevate.cpp
 // ─────────────────────────────────────────────────────────────────────────────
 namespace trails {
 
@@ -85,6 +91,17 @@ private:
     bool on_frame();                             // category: live: new snapshot? paint it
     void paint_overview(const core::Snapshot& s);   // category: live: tiles from a snapshot
 
+    // ── acts (s006) ────────────────────────────────────────────────────────
+    void bind_acts();                            // category: acts: win.proc-*, win.undo / redo
+    void sync_acts();                            // category: acts: grey what can't apply now
+    void on_proc_stop(bool stop);                // category: acts: Stop / Continue (undoable)
+    void on_proc_renice();                       // category: acts: ask, then renice (undoable)
+    void on_proc_affinity();                     // category: acts: ask, then pin (undoable)
+    void on_proc_end(bool kill);                 // category: acts: confirm, then TERM / KILL
+    void on_undo();                              // category: acts: Ctrl+Z
+    void on_redo();                              // category: acts: Ctrl+Shift+Z
+    void report(const std::string& done, const std::string& err);   // category: acts: status line + log
+
     // ── helpers ────────────────────────────────────────────────────────────
     void select_rail(const std::string& id);     // category: helper: rail row follows the stack
 
@@ -113,6 +130,12 @@ private:
     std::unique_ptr<core::Sampler> m_sampler;
     sigc::connection               m_frame;
     std::uint64_t                  m_painted_seq = 0;
+
+    // Acts (s006): the OS, the store over it, the journal over that.
+    core::SysProcOS     m_proc_os;
+    core::ProcKnobStore m_knobs{m_proc_os};
+    core::ProcJournal   m_journal{m_knobs};
+    std::map<std::string, Glib::RefPtr<Gio::SimpleAction>> m_act;
 
     std::unique_ptr<AboutWindow>     m_about;
     std::unique_ptr<ShortcutsDialog> m_shortcuts;

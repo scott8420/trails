@@ -151,6 +151,11 @@ Gtk::Widget& Shell::build_placeholder(const core::TabSpec& t) {  // zone
 Glib::RefPtr<Gio::Menu> Shell::build_menu() {  // zone: hamburger model
     auto menu = Gio::Menu::create();
 
+    auto edit = Gio::Menu::create();   // s006: the journal's two doors back
+    edit->append("Undo", "win.undo");
+    edit->append("Redo", "win.redo");
+    menu->append_section(edit);
+
     auto help = Gio::Menu::create();
     help->append("Keyboard Shortcuts", "win.shortcuts");
     help->append("Dump registry", "win.dump-registry");

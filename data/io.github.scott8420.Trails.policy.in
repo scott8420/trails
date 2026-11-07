@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Trails (s006): one polkit action for the one privileged helper.
+     install.sh fills @HELPER@ with the helper's absolute, root-owned path.
+     auth_admin_keep: one password covers a few minutes of actions (and the
+     undo of a renice, which also needs root). -->
+<policyconfig>
+  <vendor>Trails</vendor>
+  <action id="io.github.scott8420.Trails.process">
+    <description>Change another user's process, or raise a process's priority</description>
+    <message>Authentication is required to signal, renice or pin a process you do not own</message>
+    <icon_name>io.github.scott8420.Trails</icon_name>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">@HELPER@</annotate>
+  </action>
+</policyconfig>

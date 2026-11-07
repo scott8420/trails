@@ -4,8 +4,15 @@
 #   ./install.sh --system      -> /usr/local          (sudo if not writable)
 #   ./install.sh --prefix DIR  -> DIR
 #   --build                    -> run ./build.sh first
+#   --no-helper                -> skip the privileged helper (no sudo at all
+#                                 for a ~/.local install; actions on other
+#                                 users' processes then say "not permitted")
 # Installs: bin/trails, the .desktop, the scalable + symbolic hicolor icons,
 # and share/trails/install-manifest.txt (what uninstall.sh removes, exactly).
+# Plus, whatever the prefix, the helper (s006) -- always root-owned, so sudo:
+#   /usr/local/libexec/trails/trails-helper
+#   /usr/share/polkit-1/actions/io.github.scott8420.Trails.policy
+#   /usr/local/share/trails/helper-manifest.txt
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
@@ -13,13 +20,15 @@ APP=trails
 ID=io.github.scott8420.Trails
 PREFIX="$HOME/.local"
 DO_BUILD=0
+DO_HELPER=1
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --system) PREFIX=/usr/local ;;
         --prefix) shift; PREFIX="${1:?--prefix needs a directory}" ;;
         --build)  DO_BUILD=1 ;;
-        -h|--help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --no-helper) DO_HELPER=0 ;;
+        -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "install.sh: unknown option '$1'" >&2; exit 2 ;;
     esac
     shift
@@ -60,4 +69,24 @@ command -v update-desktop-database >/dev/null && $SUDO update-desktop-database -
 
 echo "Installed Trails to $PREFIX"
 printf '  %s\n' "${files[@]}"
+
+# ── the privileged helper (s006) ─────────────────────────────────────────────
+# pkexec will run it as root, so it must never live anywhere a user can write:
+# it goes to /usr/local/libexec even for a ~/.local install. polkit only reads
+# policies from /usr/share/polkit-1/actions. Trails refuses a helper that is
+# not root-owned (src/Elevate.cpp).
+if (( DO_HELPER )); then
+    [[ -x build/trails-helper ]] || { echo "install.sh: build/trails-helper not found -- run ./build.sh" >&2; exit 1; }
+    HSUDO=""; [[ $EUID -eq 0 ]] || HSUDO=sudo
+    HELPER=/usr/local/libexec/trails/trails-helper
+    POLICY=/usr/share/polkit-1/actions/$ID.policy
+    HMAN=/usr/local/share/trails/helper-manifest.txt
+    echo "Installing the privileged helper (root-owned; may ask for your password):"
+    sed "s|@HELPER@|$HELPER|g" "data/$ID.policy.in" > "$tmp/$ID.policy"
+    printf '%s\n' "$HELPER" "$POLICY" "$HMAN" > "$tmp/helper-manifest"
+    $HSUDO install -Dm755 -o root -g root "build/trails-helper" "$HELPER"
+    $HSUDO install -Dm644 -o root -g root "$tmp/$ID.policy"     "$POLICY"
+    $HSUDO install -Dm644 -o root -g root "$tmp/helper-manifest" "$HMAN"
+    printf '  %s\n' "$HELPER" "$POLICY" "$HMAN"
+fi
 [[ ":$PATH:" == *":$BIN:"* ]] || echo "Note: $BIN is not on your PATH."

@@ -3,6 +3,8 @@
 
 #include <giomm/liststore.h>
 #include <gtkmm/box.h>
+#include <gtkmm/button.h>
+#include <gtkmm/popovermenu.h>
 #include <gtkmm/checkbutton.h>
 #include <gtkmm/columnview.h>
 #include <gtkmm/filterlistmodel.h>
@@ -19,7 +21,9 @@
 
 #include <array>
 #include <functional>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -64,6 +68,23 @@ public:
     void paint(const core::Snapshot& s);
     void set_root(std::string root) { m_root = std::move(root); }   // where /proc is (fd counts)
 
+    // s006 -- process actions. The page owns no verbs: its buttons, its
+    // right-click menu and its keys all fire win.proc-* actions, and the Shell
+    // (Shell_acts.cpp) runs them through the journal. The page answers "what
+    // is selected" and shows how the last action went.
+    struct Picked {
+        int           pid = 0;
+        std::uint64_t start = 0;
+        std::string   name;
+        char          state = '?';
+        int           nice = 0;
+        bool          kernel_thread = false;
+    };
+    std::optional<Picked> picked() const;
+    void select_pid(int pid);
+    void set_status(const std::string& text, bool error);
+    void set_on_pick(std::function<void()> f) { m_on_pick = std::move(f); }
+
 private:
     using Fmt = std::function<std::string(const ProcItem&)>;
     using Cmp = std::function<int(const ProcItem&, const ProcItem&)>;
@@ -78,6 +99,8 @@ private:
     void refresh_cells();
     void restore_selection();
     void paint_detail();
+    void build_actions();       // s006: action row, right-click menu, Delete keys
+    int  pid_at(double x, double y);   // the row under a point in m_view, or -1
     bool tree_mode() const;
     static ProcItem* item_of(const Glib::RefPtr<Glib::ObjectBase>& listitem_item);
 
@@ -118,6 +141,12 @@ private:
     Gtk::Label m_d_title, m_d_cmd;
     Gtk::Grid  m_d_grid;
     std::array<std::array<Gtk::Label, 2>, 9> m_d_kv;
+
+    // Actions (s006).
+    Gtk::Box         m_acts{Gtk::Orientation::HORIZONTAL, 6};
+    Gtk::Label       m_status;
+    Gtk::PopoverMenu m_menu;
+    std::function<void()> m_on_pick;
 };
 
 }  // namespace trails::pages
