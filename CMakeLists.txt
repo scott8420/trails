@@ -76,6 +76,8 @@ add_library(trails_core STATIC
     # s011 -- systemd units: the model, the store the journal writes, the
     # merge of ListUnits + ListUnitFiles. The D-Bus side is src/Systemd.cpp.
     src/core/Units.cpp
+    # s012 -- trigger rules (a journal store, saved as JSON) + the evaluator.
+    src/core/Triggers.cpp
 )
 target_include_directories(trails_core PUBLIC include)
 target_include_directories(trails_core PRIVATE ${SQLITE_INCLUDE_DIRS})
@@ -86,7 +88,7 @@ target_link_directories(trails_core PUBLIC ${SQLITE_LIBRARY_DIRS})
 target_include_directories(trails_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
 # ── Headless selftest -- exercises the core with no display ────────────────────
-add_executable(trails_selftest src/selftest.cpp src/selftest_sampler.cpp src/selftest_procacts.cpp src/selftest_storage.cpp src/selftest_sensors.cpp src/selftest_recorder.cpp src/selftest_trail.cpp src/selftest_units.cpp)
+add_executable(trails_selftest src/selftest.cpp src/selftest_sampler.cpp src/selftest_procacts.cpp src/selftest_storage.cpp src/selftest_sensors.cpp src/selftest_recorder.cpp src/selftest_trail.cpp src/selftest_units.cpp src/selftest_triggers.cpp)
 find_package(Threads REQUIRED)
 
 # ── trails-helper -- the one thing that runs as root (s006) ────────────────────

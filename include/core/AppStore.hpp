@@ -13,6 +13,7 @@
 //                      the serial names the open() it belongs to, so a step
 //                      from a file since closed finds nothing
 //   Ref::of_unit(key)  -> UnitStore: a unit file enabled / disabled (s011)
+//   Ref::of_trigger(id) -> TriggerBook: a trigger rule (s012)
 //
 // The one-door guard holds on every branch: a put with the door shut is a
 // stray, counted, and the selftest gate fails on it.
@@ -20,6 +21,7 @@
 #include "core/Recorder.hpp"
 #include "core/Trail.hpp"
 #include "core/Units.hpp"
+#include "core/Triggers.hpp"
 #include "core/Undo.hpp"
 
 #include <functional>
@@ -29,7 +31,7 @@
 namespace trails::core {
 
 struct Ref {
-    enum class Kind { Proc, Mark, TrailMark, Unit } kind = Kind::Proc;
+    enum class Kind { Proc, Mark, TrailMark, Unit, Trigger } kind = Kind::Proc;
     ProcKey      proc;
     std::int64_t mark = 0;
     std::int64_t owner = 0;   // TrailMark: Trail::serial()
@@ -38,9 +40,10 @@ struct Ref {
     static Ref of_mark(std::int64_t id) { return {Kind::Mark, {}, id, 0, {}}; }
     static Ref of_trail_mark(std::int64_t serial, std::int64_t id) { return {Kind::TrailMark, {}, id, serial, {}}; }
     static Ref of_unit(const UnitKey& k) { return {Kind::Unit, {}, 0, 0, k}; }
+    static Ref of_trigger(std::int64_t id) { return {Kind::Trigger, {}, id, 0, {}}; }
     bool operator==(const Ref&) const = default;
 };
-using Rec = std::variant<ProcKnobs, Marker, UnitKnobs>;
+using Rec = std::variant<ProcKnobs, Marker, UnitKnobs, Trigger>;
 
 class AppStore {
 public:
@@ -56,6 +59,8 @@ public:
     Recorder*      recorder() { return m_rec; }
     void           set_trail(Trail* t) { m_trail = t; }
     void           set_units(UnitStore* u) { m_units = u; }
+    void           set_triggers(TriggerBook* b) { m_triggers = b; }
+    TriggerBook*   triggers() { return m_triggers; }
     UnitStore*     units() { return m_units; }
     Trail*         trail() { return m_trail; }
     const std::string& last_error() const { return m_err; }
@@ -63,15 +68,17 @@ public:
 
     void set_door(std::function<bool()> open) {
         m_door = open;
+        if (m_triggers) m_triggers->set_door(open);
         m_knobs.set_door(std::move(open));
     }
-    int strays() const { return m_strays + m_knobs.strays(); }
+    int strays() const { return m_strays + m_knobs.strays() + (m_triggers ? m_triggers->strays() : 0); }
 
 private:
     ProcKnobStore&        m_knobs;
     Recorder*             m_rec;
     Trail*                m_trail = nullptr;
     UnitStore*            m_units = nullptr;
+    TriggerBook*          m_triggers = nullptr;
     std::string           m_err;
     std::function<bool()> m_door;
     int                   m_strays = 0;
@@ -108,5 +115,19 @@ struct Verb {
 };
 const std::vector<Verb>& verbs();   // the selftest gate walks these
 }  // namespace units
+
+// s012: trigger rules. Every change is a step.
+namespace triggers {
+std::int64_t add(AppJournal& j, AppStore& s, const Trigger& t);
+std::string  edit(AppJournal& j, AppStore& s, std::int64_t id, const Trigger& t);
+std::string  remove(AppJournal& j, AppStore& s, std::int64_t id);
+std::string  set_enabled(AppJournal& j, AppStore& s, std::int64_t id, bool on);
+
+struct Verb {
+    std::string name;
+    std::function<void(AppJournal&, AppStore&, std::int64_t first)> run;
+};
+const std::vector<Verb>& verbs();   // the selftest gate walks these
+}  // namespace triggers
 
 }  // namespace trails::core

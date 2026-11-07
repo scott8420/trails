@@ -39,6 +39,7 @@ void Shell::on_record() {  // record: start / stop
         m_recorder.stop();
         m_rec_was_on = false;
         if (lg) lg->info("record: stopped {} ({} ticks)", path, m_recorder.ticks());
+        m_trails_page.shown();   // "(recording)" comes off its name
         m_rec_status.set_text("Saved " + std::filesystem::path(path).filename().string());
         m_rec_status.set_tooltip_text(path);
         m_rec_status.remove_css_class("error");
@@ -71,6 +72,7 @@ void Shell::on_record() {  // record: start / stop
     m_rec_status.remove_css_class("error");
     m_rec_status.set_tooltip_text(path);
     if (lg) lg->info("record: started {}", path);
+    m_trails_page.shown();   // the new file joins the list (and opens if none was)
     paint_record();
     sync_acts();
 }
@@ -142,6 +144,74 @@ void Shell::on_trail_mark_delete() {  // record: delete the picked mark (Ctrl+Z 
     report("Deleted the mark (Ctrl+Z puts it back)", e);
 }
 
+// ── s012: triggers ──────────────────────────────────────────────────────────
+
+std::vector<std::string> Shell::live_metrics() const {
+    std::vector<std::string> out;
+    if (auto s = m_sampler ? m_sampler->snapshot() : nullptr)
+        for (const auto& [id, v] : s->now) out.push_back(id);
+    if (out.empty()) out = {"cpu.total", "mem.used_pct", "temp.max", "load.1"};
+    return out;
+}
+
+void Shell::on_trigger_add() {
+    core::Trigger t;
+    t.name = "CPU pegged";
+    dialogs::ask_trigger(*this, "New Trigger", t, live_metrics(), [this](core::Trigger r) {
+        core::triggers::add(m_journal, m_app, r);
+        m_trails_page.refresh_triggers();
+        report("Added trigger \u201C" + r.name + "\u201D (Ctrl+Z removes it)", m_app.last_error());
+    });
+}
+
+void Shell::on_trigger_edit() {
+    const auto id = m_trails_page.selected_trigger();
+    const auto cur = m_triggers.get(id);
+    if (!cur) return;
+    dialogs::ask_trigger(*this, "Edit Trigger", *cur, live_metrics(), [this, id](core::Trigger r) {
+        const std::string e = core::triggers::edit(m_journal, m_app, id, r);
+        m_trig_eval.forget(id);   // a changed rule starts watching afresh
+        m_trails_page.refresh_triggers();
+        report("Changed trigger \u201C" + r.name + "\u201D", e);
+    });
+}
+
+void Shell::on_trigger_remove() {
+    const auto id = m_trails_page.selected_trigger();
+    const std::string e = core::triggers::remove(m_journal, m_app, id);
+    m_trails_page.refresh_triggers();
+    report("Removed the trigger (Ctrl+Z puts it back)", e);
+}
+
+void Shell::on_trigger_toggle() {
+    const auto id = m_trails_page.selected_trigger();
+    const auto cur = m_triggers.get(id);
+    if (!cur) return;
+    const std::string e = core::triggers::set_enabled(m_journal, m_app, id, !cur->enabled);
+    m_trails_page.refresh_triggers();
+    report(std::string("Trigger ") + (cur->enabled ? "off" : "on"), e);
+}
+
+void Shell::run_triggers(const core::Snapshot& s) {
+    for (const auto& f : m_trig_eval.step(m_triggers, s, s.t)) {
+        const std::string name = f.rule.name.empty() ? f.rule.metric : f.rule.name;
+        char v[32];
+        std::snprintf(v, sizeof v, "%g", f.value);
+        if (auto lg = log::get(log::Area::Shell)) lg->info("trigger: {} ({} = {})", name, f.rule.metric, v);
+        if (f.rule.record && !m_recorder.recording()) on_record();   // start; the mark below lands in it
+        if (f.rule.mark && m_recorder.recording()) {
+            // Not a user choice: straight to the recorder, kind "trigger", not a step.
+            if (const auto id = m_recorder.fresh_mark_id())
+                m_recorder.put_mark(id, core::Marker{core::Recorder::wall_now(), "trigger",
+                                                     "Trigger: " + name + " (" + f.rule.metric + " " + v + ")"});
+        }
+        m_trigger_note = "\u26A1 " + name;
+        m_trigger_note_t = core::Recorder::wall_now();
+        m_rec_status.set_text("\u26A1 Trigger: " + name);
+        m_rec_status.remove_css_class("error");
+    }
+}
+
 void Shell::paint_record() {  // record: button, status, greying
     const bool on = m_recorder.recording();
     if (m_rec_was_on && !on) {   // the writer stopped itself (disk full, file gone)
@@ -170,6 +240,7 @@ void Shell::paint_record() {  // record: button, status, greying
     if (on) {
         std::string t = clock_text(core::Recorder::wall_now() - m_recorder.started());
         if (m_marks_made) t += " · " + std::to_string(m_marks_made) + (m_marks_made == 1 ? " mark" : " marks");
+        if (!m_trigger_note.empty() && core::Recorder::wall_now() - m_trigger_note_t < 15) t += " · " + m_trigger_note;
         if (std::string(m_rec_status.get_text()) != t) m_rec_status.set_text(t);
     }
 }

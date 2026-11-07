@@ -1,5 +1,6 @@
 #pragma once
 #include "core/Trail.hpp"
+#include "core/Triggers.hpp"
 #include "widgets/Timeline.hpp"
 
 #include <gtkmm/box.h>
@@ -50,6 +51,13 @@ public:
     std::int64_t selected_mark() const { return m_sel_mark; }   // 0 = none
     void set_status(const std::string& text, bool error);
     void set_window(Gtk::Window* w) { m_window = w; }
+    // s012: the trigger rules panel. The page reads the book and the
+    // evaluator's status; Add / Edit / Remove / On-Off are win.trigger-*.
+    void set_triggers(const core::TriggerBook* b, const core::TriggerEval* e) { m_book = b; m_eval = e; }
+    void refresh_triggers();   // the rule list changed (rebuild rows)
+    void paint_triggers();     // each tick: just the status words
+    std::int64_t selected_trigger() const { return m_sel_trigger; }
+    void set_on_trigger_pick(std::function<void()> f) { m_on_trigger_pick = std::move(f); }
     // The Shell says which file is being recorded right now ("" = none).
     void set_live_path(std::function<std::string()> f) { m_live = std::move(f); }
 
@@ -98,6 +106,18 @@ private:
     Gtk::Box   m_mark_btns{Gtk::Orientation::HORIZONTAL, 6};
     Gtk::Button m_add_btn, m_rename_btn, m_delete_btn;
     std::vector<core::TrailMark> m_mark_list;
+
+    // Triggers (s012).
+    const core::TriggerBook* m_book = nullptr;
+    const core::TriggerEval* m_eval = nullptr;
+    Gtk::Box     m_trig_box{Gtk::Orientation::VERTICAL, 6};
+    Gtk::Label   m_trig_title, m_trig_hint;
+    Gtk::ListBox m_trig_list;
+    Gtk::Box     m_trig_btns{Gtk::Orientation::HORIZONTAL, 6};
+    std::vector<std::int64_t>  m_trig_ids;
+    std::vector<Gtk::Label*>   m_trig_status;
+    std::int64_t m_sel_trigger = 0;
+    std::function<void()> m_on_trigger_pick;
     std::int64_t m_sel_mark = 0;
     bool m_syncing = false;
 };

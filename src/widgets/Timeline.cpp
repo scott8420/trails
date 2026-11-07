@@ -166,6 +166,17 @@ void Timeline::draw(const Cairo::RefPtr<Cairo::Context>& cr, int w, int h) {
         layout->show_in_cairo_context(cr);
     };
 
+    if (m_t0 <= 0) {   // nothing opened yet: an empty frame, no 1970 clock
+        cr->set_line_width(1.0);
+        rgba(0.10);
+        for (int i = 0; i <= 4; ++i) {
+            const double y = std::round(top + H * i / 4.0) + 0.5;
+            cr->move_to(0, y);
+            cr->line_to(W, y);
+        }
+        cr->stroke();
+        return;
+    }
     double mx = 0;
     for (const auto& p : m_a) mx = std::max(mx, double(p.v));
     for (const auto& p : m_b) mx = std::max(mx, double(p.v));

@@ -80,6 +80,8 @@ bool Shell::on_frame() {  // live: new snapshot? paint it
     else if (tab == "gpu")      m_gpu_page.paint(*snap);
     else if (tab == "trails")   m_trails_page.tick();
     else if (tab == "services") { m_services_page.tick(); sync_acts(); }
+    run_triggers(*snap);   // s012: on every tick, whatever tab is showing
+    if (tab == "trails") m_trails_page.paint_triggers();
     paint_record();   // s009: elapsed time, or why a recording stopped
     return true;
 }

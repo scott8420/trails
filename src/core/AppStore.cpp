@@ -12,6 +12,11 @@ std::optional<Rec> AppStore::get(const Ref& r) const {
             if (auto u = m_units->get(r.unit)) return Rec{*u};
         return std::nullopt;
     }
+    if (r.kind == Ref::Kind::Trigger) {
+        if (m_triggers)
+            if (auto t = m_triggers->get(r.mark)) return Rec{*t};
+        return std::nullopt;
+    }
     if (r.kind == Ref::Kind::TrailMark) {
         if (m_trail && m_trail->is_open() && m_trail->serial() == r.owner)
             if (auto m = m_trail->get_mark(r.mark)) return Rec{*m};
@@ -27,6 +32,14 @@ void AppStore::put(const Ref& r, const std::optional<Rec>& v) {
         std::optional<ProcKnobs> k;
         if (v) if (auto* p = std::get_if<ProcKnobs>(&*v)) k = *p;
         m_knobs.put(r.proc, k);
+        return;
+    }
+    if (r.kind == Ref::Kind::Trigger) {   // the book counts its own strays
+        if (!m_triggers) return;
+        std::optional<Trigger> t;
+        if (v) if (auto* p = std::get_if<Trigger>(&*v)) t = *p;
+        m_triggers->put(r.mark, t);
+        if (!m_triggers->last_error().empty()) m_err = m_triggers->last_error();
         return;
     }
     if (m_door && !m_door()) ++m_strays;
@@ -144,5 +157,69 @@ const std::vector<Verb>& verbs() {
     return v;
 }
 }  // namespace units
+
+namespace triggers {
+namespace {
+std::string q(const std::string& t) { return "\u201C" + t + "\u201D"; }
+std::string label(const Trigger& t) { return t.name.empty() ? t.metric : t.name; }
+}  // namespace
+
+std::int64_t add(AppJournal& j, AppStore& s, const Trigger& t) {
+    TriggerBook* b = s.triggers();
+    if (!b) return 0;
+    const std::int64_t id = b->fresh_id();
+    const Ref r = Ref::of_trigger(id);
+    s.clear_error();
+    j.run("Add trigger " + q(label(t)), {r}, [&] { s.put(r, Rec{t}); });
+    return id;
+}
+
+std::string edit(AppJournal& j, AppStore& s, std::int64_t id, const Trigger& t) {
+    TriggerBook* b = s.triggers();
+    if (!b || !b->get(id)) return "That trigger is gone.";
+    const Ref r = Ref::of_trigger(id);
+    s.clear_error();
+    j.run("Edit trigger " + q(label(t)), {r}, [&] { s.put(r, Rec{t}); });
+    return s.last_error();
+}
+
+std::string remove(AppJournal& j, AppStore& s, std::int64_t id) {
+    TriggerBook* b = s.triggers();
+    const auto cur = b ? b->get(id) : std::nullopt;
+    if (!cur) return "That trigger is gone.";
+    const Ref r = Ref::of_trigger(id);
+    s.clear_error();
+    j.run("Remove trigger " + q(label(*cur)), {r}, [&] { s.put(r, std::nullopt); });
+    return s.last_error();
+}
+
+std::string set_enabled(AppJournal& j, AppStore& s, std::int64_t id, bool on) {
+    TriggerBook* b = s.triggers();
+    auto cur = b ? b->get(id) : std::nullopt;
+    if (!cur) return "That trigger is gone.";
+    cur->enabled = on;
+    const Ref r = Ref::of_trigger(id);
+    s.clear_error();
+    j.run(std::string(on ? "Turn on trigger " : "Turn off trigger ") + q(label(*cur)), {r},
+          [&] { s.put(r, Rec{*cur}); });
+    return s.last_error();
+}
+
+const std::vector<Verb>& verbs() {
+    static const std::vector<Verb> v = {
+        {"add", [](AppJournal& j, AppStore& s, std::int64_t) {
+             add(j, s, Trigger{"hot", "temp.max", true, 85, 10, false, true, true});
+         }},
+        {"edit", [](AppJournal& j, AppStore& s, std::int64_t first) {
+             auto t = *s.triggers()->get(first);
+             t.threshold = 50;
+             edit(j, s, first, t);
+         }},
+        {"remove", [](AppJournal& j, AppStore& s, std::int64_t first) { remove(j, s, first); }},
+        {"turn off", [](AppJournal& j, AppStore& s, std::int64_t first) { set_enabled(j, s, first, false); }},
+    };
+    return v;
+}
+}  // namespace triggers
 
 }  // namespace trails::core

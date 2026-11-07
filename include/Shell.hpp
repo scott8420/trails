@@ -124,6 +124,12 @@ private:
     void on_trail_mark_add();                    // category: record: a mark at the Trails cursor (undoable)
     void on_trail_mark_rename();                 // category: record: ask, then rename (undoable)
     void on_trail_mark_delete();                 // category: record: delete the picked mark (undoable)
+    void on_trigger_add();                       // category: record: a new rule (undoable)
+    void on_trigger_edit();                      // category: record: change the picked rule (undoable)
+    void on_trigger_remove();                    // category: record: remove the picked rule (undoable)
+    void on_trigger_toggle();                    // category: record: on / off (undoable)
+    void run_triggers(const core::Snapshot& s);  // category: record: each tick -- fire what holds
+    std::vector<std::string> live_metrics() const;   // category: record: the editor's metric list
     void paint_record();                         // category: record: button label, status, greying
 
     // ── helpers ────────────────────────────────────────────────────────────
@@ -138,6 +144,8 @@ private:
     widgets::Button     m_copy_button;    // s009: copy the sqlite3 command for this / the last .trail
     std::string         m_last_trail;     // the recording now, or the last one made this run
     int                 m_marks_made = 0;
+    std::string         m_trigger_note;      // s012: "⚡ CPU pegged", shown a while
+    double              m_trigger_note_t = 0;
     bool                m_rec_was_on = false;
 
     // Body: tab rail | stack.
@@ -175,6 +183,8 @@ private:
     core::Recorder      m_recorder;
     Systemd             m_systemd;                 // s011: the D-Bus side
     core::UnitStore     m_units{&m_systemd};
+    core::TriggerBook   m_triggers;                // s012: rules (a journal store, saved as JSON)
+    core::TriggerEval   m_trig_eval;
     core::AppStore      m_app{m_knobs, &m_recorder};
     core::AppJournal    m_journal{m_app};
     std::map<std::string, Glib::RefPtr<Gio::SimpleAction>> m_act;

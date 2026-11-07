@@ -2,6 +2,8 @@
 // ActDialogs -- the small modal questions process actions ask (s006).
 // Each calls `done` only on OK / the confirming button; Cancel, Escape and
 // closing the window call nothing. Windows delete themselves when hidden.
+#include "core/Triggers.hpp"
+
 #include <gtkmm/window.h>
 
 #include <functional>
@@ -27,6 +29,11 @@ void confirm_end(Gtk::Window& parent, const std::string& name, int pid, bool kil
 // restart a unit). Cancel is the default.
 void confirm(Gtk::Window& parent, const std::string& heading, const std::string& detail,
              const std::string& button, std::function<void()> yes);
+
+// A trigger rule (s012): name, metric (from `metrics`), above / below,
+// threshold, seconds, record / mark / on. `done` gets the edited rule.
+void ask_trigger(Gtk::Window& parent, const std::string& title, const core::Trigger& initial,
+                 const std::vector<std::string>& metrics, std::function<void(core::Trigger)> done);
 
 // One line of text (s010: rename a mark). `done` gets the text on OK.
 void ask_text(Gtk::Window& parent, const std::string& title, const std::string& prompt,

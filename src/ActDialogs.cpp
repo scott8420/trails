@@ -5,6 +5,9 @@
 #include <gtkmm/button.h>
 #include <gtkmm/checkbutton.h>
 #include <gtkmm/entry.h>
+#include <gtkmm/dropdown.h>
+#include <gtkmm/grid.h>
+#include <gtkmm/stringlist.h>
 #include <gtkmm/eventcontrollerkey.h>
 #include <gtkmm/flowbox.h>
 #include <gtkmm/headerbar.h>
@@ -176,6 +179,110 @@ void ask_text(Gtk::Window& parent, const std::string& title, const std::string& 
     });
     m.win->present();
     entry->grab_focus();
+}
+
+void ask_trigger(Gtk::Window& parent, const std::string& title, const core::Trigger& initial,
+                 const std::vector<std::string>& metrics, std::function<void(core::Trigger)> done) {
+    auto m = make_modal(parent, title, "Save");
+    auto* grid = Gtk::make_managed<Gtk::Grid>();
+    grid->set_row_spacing(8);
+    grid->set_column_spacing(12);
+    int row = 0;
+    auto label = [&](const char* t) {
+        auto* l = Gtk::make_managed<Gtk::Label>(t);
+        l->set_xalign(1.0f);
+        l->add_css_class("dim-label");
+        grid->attach(*l, 0, row);
+    };
+
+    label("Name");
+    auto* name = Gtk::make_managed<Gtk::Entry>();
+    name->set_text(initial.name);
+    name->set_placeholder_text("CPU pegged");
+    grid->attach(*name, 1, row++, 2);
+
+    label("When");
+    std::vector<Glib::ustring> ms;
+    guint pick = 0;
+    for (const auto& x : metrics) { if (x == initial.metric) pick = guint(ms.size()); ms.push_back(x); }
+    if (std::find(metrics.begin(), metrics.end(), initial.metric) == metrics.end()) {
+        pick = guint(ms.size());
+        ms.push_back(initial.metric);
+    }
+    auto* metric = Gtk::make_managed<Gtk::DropDown>(Gtk::StringList::create(ms));
+    metric->set_selected(pick);
+    metric->set_hexpand(true);
+    grid->attach(*metric, 1, row++, 2);
+
+    label("is");
+    auto* cmp = Gtk::make_managed<Gtk::DropDown>(Gtk::StringList::create({"above", "below"}));
+    cmp->set_selected(initial.above ? 0 : 1);
+    auto* thr = Gtk::make_managed<Gtk::SpinButton>();
+    thr->set_range(-1e12, 1e12);
+    thr->set_increments(1, 10);
+    thr->set_digits(2);
+    thr->set_value(initial.threshold);
+    thr->set_hexpand(true);
+    grid->attach(*cmp, 1, row);
+    grid->attach(*thr, 2, row++);
+
+    label("for");
+    auto* secs = Gtk::make_managed<Gtk::SpinButton>();
+    secs->set_range(0, 86400);
+    secs->set_increments(1, 10);
+    secs->set_digits(0);
+    secs->set_value(initial.seconds);
+    auto* sl = Gtk::make_managed<Gtk::Label>("seconds (0 = at once)");
+    sl->set_xalign(0.0f);
+    sl->add_css_class("dim-label");
+    grid->attach(*secs, 1, row);
+    grid->attach(*sl, 2, row++);
+
+    label("then");
+    auto* rec = Gtk::make_managed<Gtk::CheckButton>("start recording");
+    auto* mark = Gtk::make_managed<Gtk::CheckButton>("drop a mark");
+    rec->set_active(initial.record);
+    mark->set_active(initial.mark);
+    grid->attach(*rec, 1, row);
+    grid->attach(*mark, 2, row++);
+
+    auto* on = Gtk::make_managed<Gtk::CheckButton>("On");
+    on->set_active(initial.enabled);
+    grid->attach(*on, 1, row++);
+
+    auto* hint = Gtk::make_managed<Gtk::Label>(
+        "Values are in the metric's own units: % for cpu.* and *_pct, bytes / s for\n"
+        "rates, \u00b0C for temps, W for power. A trigger fires once, then again only\n"
+        "after the condition clears. Triggers run while Trails is open.");
+    hint->set_xalign(0.0f);
+    hint->add_css_class("dim-label");
+    m.body->append(*grid);
+    m.body->append(*hint);
+
+    auto ok = m.ok;
+    auto sync = [ok, rec, mark] { ok->set_sensitive(rec->get_active() || mark->get_active()); };
+    rec->signal_toggled().connect(sync);
+    mark->signal_toggled().connect(sync);
+    sync();
+
+    m.ok->signal_clicked().connect([w = m.win, name, metric, cmp, thr, secs, rec, mark, on, ms, done] {
+        thr->update();
+        secs->update();
+        core::Trigger t;
+        t.name = name->get_text();
+        const auto i = metric->get_selected();
+        t.metric = i < ms.size() ? std::string(ms[i]) : std::string("cpu.total");
+        t.above = cmp->get_selected() == 0;
+        t.threshold = thr->get_value();
+        t.seconds = int(secs->get_value());
+        t.record = rec->get_active();
+        t.mark = mark->get_active();
+        t.enabled = on->get_active();
+        w->close();
+        done(t);
+    });
+    m.win->present();
+    name->grab_focus();
 }
 
 void confirm(Gtk::Window& parent, const std::string& heading, const std::string& detail,

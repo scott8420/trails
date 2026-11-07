@@ -251,6 +251,91 @@ void TrailsPage::build_body() {
     m_lower.append(m_at);
     m_lower.append(m_marks_box);
     m_page.append(m_lower);
+
+    // Triggers (s012): start the trail before you notice.
+    m_trig_box.add_css_class("panel");
+    m_trig_title.set_text("Triggers");
+    m_trig_title.add_css_class("section-title");
+    m_trig_title.set_xalign(0.0f);
+    m_trig_hint.set_text("Start a recording or drop a mark when a condition holds -- e.g. cpu.total above 90 "
+                         "for 30 s. Triggers run while Trails is open.");
+    m_trig_hint.add_css_class("dim-label");
+    m_trig_hint.set_xalign(0.0f);
+    m_trig_hint.set_wrap(true);
+    m_trig_list.set_selection_mode(Gtk::SelectionMode::SINGLE);
+    m_trig_list.add_css_class("boxed-list");
+    m_trig_list.signal_row_selected().connect([this](Gtk::ListBoxRow* row) {
+        if (m_syncing) return;
+        const auto i = row ? std::size_t(row->get_index()) : m_trig_ids.size();
+        m_sel_trigger = i < m_trig_ids.size() ? m_trig_ids[i] : 0;
+        if (m_on_trigger_pick) m_on_trigger_pick();
+    });
+    struct B { const char* label; const char* action; };
+    for (const B& b : {B{"Add\u2026", "win.trigger-add"}, B{"Edit\u2026", "win.trigger-edit"},
+                       B{"On / Off", "win.trigger-toggle"}, B{"Remove", "win.trigger-remove"}}) {
+        auto* btn = Gtk::make_managed<Gtk::Button>(b.label);
+        btn->set_action_name(b.action);
+        m_trig_btns.append(*btn);
+    }
+    m_trig_box.append(m_trig_title);
+    m_trig_box.append(m_trig_hint);
+    m_trig_box.append(m_trig_list);
+    m_trig_box.append(m_trig_btns);
+    m_page.append(m_trig_box);
+}
+
+void TrailsPage::refresh_triggers() {
+    if (!m_book) return;
+    m_syncing = true;
+    while (auto* r = m_trig_list.get_row_at_index(0)) m_trig_list.remove(*r);
+    m_trig_ids = m_book->ids();
+    m_trig_status.clear();
+    for (auto id : m_trig_ids) {
+        const auto t = *m_book->get(id);
+        auto* row = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 12);
+        row->set_margin(6);
+        auto* name = Gtk::make_managed<Gtk::Label>(t.name.empty() ? "(unnamed)" : t.name);
+        name->add_css_class("kv-value");
+        name->set_xalign(0.0f);
+        auto* what = Gtk::make_managed<Gtk::Label>(core::describe(t));
+        what->set_xalign(0.0f);
+        what->set_hexpand(true);
+        what->set_ellipsize(Pango::EllipsizeMode::END);
+        auto* st = Gtk::make_managed<Gtk::Label>();
+        st->add_css_class("dim-label");
+        row->append(*name);
+        row->append(*what);
+        row->append(*st);
+        if (!t.enabled) row->set_opacity(0.5);
+        m_trig_list.append(*row);
+        m_trig_status.push_back(st);
+    }
+    bool found = false;
+    for (std::size_t i = 0; i < m_trig_ids.size(); ++i)
+        if (m_trig_ids[i] == m_sel_trigger) { m_trig_list.select_row(*m_trig_list.get_row_at_index(int(i))); found = true; }
+    if (!found) m_sel_trigger = 0;
+    m_trig_list.set_visible(!m_trig_ids.empty());
+    m_syncing = false;
+    paint_triggers();
+    if (m_on_trigger_pick) m_on_trigger_pick();
+}
+
+void TrailsPage::paint_triggers() {
+    if (!m_eval || !m_book) return;
+    for (std::size_t i = 0; i < m_trig_ids.size() && i < m_trig_status.size(); ++i) {
+        const auto r = m_book->get(m_trig_ids[i]);
+        const auto st = m_eval->status(m_trig_ids[i]);
+        std::string w;
+        if (!r || !r->enabled) w = "off";
+        else switch (st.state) {
+            case core::TriggerEval::State::Off:     w = "off"; break;
+            case core::TriggerEval::State::Armed:   w = "watching"; break;
+            case core::TriggerEval::State::Holding: w = "holding " + std::to_string(int(st.held)) + " / " +
+                                                        std::to_string(r->seconds) + " s"; break;
+            case core::TriggerEval::State::Fired:   w = "fired \u2014 waiting to clear"; break;
+        }
+        set(*m_trig_status[i], w);
+    }
 }
 
 void TrailsPage::set_status(const std::string& text, bool error) {
@@ -411,6 +496,7 @@ void TrailsPage::tick() {
     m_timeline.set_span(m_trail.t0(), m_trail.t1());
     if (m_trail.metrics().size() != std::size_t(m_a_model->get_n_items())) fill_metrics();
     requery();
+    refresh_marks();   // a trigger's (or Ctrl+M's) mark shows up too
 }
 
 void TrailsPage::on_open_dialog() {
