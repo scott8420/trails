@@ -41,6 +41,7 @@ void Shell::start_sampling() {  // live: Sampler + frame tick up
     core::SamplerConfig cfg;   // "/", 1 s, 300 samples
     if (const char* r = std::getenv("TRAILS_ROOT"); r && *r) cfg.root = r;
     m_sampler = std::make_unique<core::Sampler>(cfg);
+    m_proc_page.set_root(cfg.root);
     m_sampler->start();
     m_frame = Glib::signal_timeout().connect(sigc::mem_fun(*this, &Shell::on_frame), kFrameMs);
     if (auto lg = log::get(log::Area::Shell))
@@ -68,6 +69,7 @@ bool Shell::on_frame() {  // live: new snapshot? paint it
     if      (tab == "overview") paint_overview(*snap);
     else if (tab == "cpu")      m_cpu_page.paint(*snap);
     else if (tab == "memory")   m_mem_page.paint(*snap);
+    else if (tab == "processes") m_proc_page.paint(*snap);
     return true;
 }
 

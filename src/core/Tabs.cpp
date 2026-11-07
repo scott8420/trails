@@ -11,7 +11,7 @@ const std::vector<TabSpec>& tab_registry() {
          "Every core, its frequency, load, and the P / E clusters."},
         {"memory",    "Memory",          "trails-tab-memory-symbolic",    "tab-memory",    "",
          "Used, cached, buffers, swap and zram -- and who holds it."},
-        {"processes", "Processes",       "trails-tab-processes-symbolic", "tab-processes", "s005",
+        {"processes", "Processes",       "trails-tab-processes-symbolic", "tab-processes", "",
          "Every process, tree or flat, sortable, with the actions to tame it."},
         {"disks",     "Disks",           "trails-tab-disks-symbolic",     "tab-disks",     "s007",
          "Per-device I/O, mounts, usage and btrfs subvolumes."},

@@ -3,6 +3,7 @@
 #include "widgets/Tile.hpp"
 #include "pages/CpuPage.hpp"
 #include "pages/MemoryPage.hpp"
+#include "pages/ProcessesPage.hpp"
 #include "core/Sampler.hpp"
 #include "core/Tabs.hpp"
 
@@ -106,6 +107,7 @@ private:
     // Built tabs (s004+): each page is its own class with paint(Snapshot).
     pages::CpuPage    m_cpu_page;
     pages::MemoryPage m_mem_page;
+    pages::ProcessesPage m_proc_page;
 
     // Live.
     std::unique_ptr<core::Sampler> m_sampler;

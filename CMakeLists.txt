@@ -54,6 +54,8 @@ add_library(trails_core STATIC
     # s003 -- the one tab list (rail, pages, icons, Alt+N) and value formatting.
     src/core/Tabs.cpp
     src/core/Format.cpp
+    # s005 -- the Processes tab's GTK-free half: tree index, filter, names.
+    src/core/ProcView.cpp
 )
 target_include_directories(trails_core PUBLIC include)
 # Vendored nlohmann/json (header-only, MIT), PRIVATE -- an implementation detail
@@ -114,6 +116,7 @@ add_executable(trails
     src/widgets/Bar.cpp
     src/pages/CpuPage.cpp
     src/pages/MemoryPage.cpp
+    src/pages/ProcessesPage.cpp
     src/AboutWindow.cpp
     src/ShortcutsDialog.cpp
     src/Registry.cpp

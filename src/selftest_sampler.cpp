@@ -572,3 +572,60 @@ void run_cpu_mem_tests(const Check& check) {
           s->find("mem.cache_pct") && near(s->find("mem.cache_pct")->back(), 31.875, 1e-4) &&
           s->find("swap.used_pct") && near(s->find("swap.used_pct")->back(), 25, 1e-4), "");
 }
+
+// ── s005: process tree, filter, state words, users, fds ──────────────────────
+#include "core/ProcView.hpp"
+
+void run_procview_tests(const Check& check) {
+    namespace pv = trails::core::procview;
+    auto row = [](int pid, int ppid, const char* name, const char* cmd = "") {
+        core::ProcRow r; r.pid = pid; r.ppid = ppid; r.name = name; r.cmdline = cmd; return r;
+    };
+    // 1 systemd -> 500 gnome-shell -> 900 firefox -> 901, 902 (content)
+    // 2 kthreadd -> 3 kworker ; 777 orphan whose parent 600 exited.
+    std::vector<core::ProcRow> procs = {
+        row(1, 0, "systemd"), row(2, 0, "kthreadd"), row(3, 2, "kworker/0:0"),
+        row(500, 1, "gnome-shell"), row(777, 600, "orphan"),
+        row(900, 500, "firefox", "/usr/lib64/firefox/firefox --new-window"),
+        row(901, 900, "Isolated Web Co"), row(902, 900, "Isolated Web Co")};
+    auto ix = pv::build_index(procs);
+    check("procview: roots = no parent in the table (incl. orphans)",
+          ix.roots == std::vector<int>({1, 2, 777}), std::to_string(ix.roots.size()));
+    check("procview: children by ppid, pid order",
+          ix.children[900] == std::vector<int>({901, 902}) && ix.children[1] == std::vector<int>({500}) &&
+          ix.children.count(901) == 0, "");
+    {
+        auto self = pv::build_index({row(5, 5, "loop")});
+        check("procview: a self-parented row is a root, not its own child",
+              self.roots == std::vector<int>({5}) && self.children.empty(), "");
+    }
+
+    const auto& ff = procs[5];
+    check("procview: filter matches name / cmdline / user / pid, case-insensitive",
+          pv::matches(ff, "scott", "FIRE") && pv::matches(ff, "scott", "new-window") &&
+          pv::matches(ff, "scott", "Scott") && pv::matches(ff, "scott", "90") &&
+          !pv::matches(ff, "scott", "chrome"), "");
+    check("procview: empty / blank query matches all", pv::matches(ff, "", "") && pv::matches(ff, "", "   "), "");
+
+    check("procview: state words",
+          std::string(pv::state_name('R')) == "Running" && std::string(pv::state_name('D')) == "Disk wait" &&
+          std::string(pv::state_name('Z')) == "Zombie" && std::string(pv::state_name('?')) == "?", "");
+    check("procview: user name resolves (root is 0) and caches",
+          pv::user_name(0) == "root" && &pv::user_name(0) == &pv::user_name(0), pv::user_name(0));
+    check("procview: unknown uid falls back to the number", pv::user_name(4000000000u) == "4000000000",
+          pv::user_name(4000000000u));
+
+    {
+        Fixture fx;
+        fs::create_directories(fx.root / "proc/42/fd");
+        fs::create_symlink("/home/scott/a.txt", fx.root / "proc/42/fd/0");
+        fs::create_symlink("socket:[12345]", fx.root / "proc/42/fd/1");
+        fs::create_symlink("socket:[12346]", fx.root / "proc/42/fd/2");
+        fs::create_symlink("pipe:[999]", fx.root / "proc/42/fd/3");
+        int files = -1, socks = -1;
+        bool ok = probe::count_fds(fx.str(), 42, files, socks);
+        check("fds: counts entries and sockets", ok && files == 4 && socks == 2,
+              std::to_string(files) + "/" + std::to_string(socks));
+        check("fds: unreadable -> false", !probe::count_fds(fx.str(), 43, files, socks), "");
+    }
+}

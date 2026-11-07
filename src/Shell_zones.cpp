@@ -79,6 +79,7 @@ void Shell::build_pages() {  // zone: one stack page per tab
         if      (t.id == "overview") page = &build_overview();
         else if (t.id == "cpu")      page = &m_cpu_page;
         else if (t.id == "memory")   page = &m_mem_page;
+        else if (t.id == "processes") page = &m_proc_page;
         else                         page = &build_placeholder(t);
         m_stack.add(*page, std::string(t.id), std::string(t.title));
     }
