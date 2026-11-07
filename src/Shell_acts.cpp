@@ -2,6 +2,7 @@
 #include "ActDialogs.hpp"
 #include "Elevate.hpp"
 #include "Log.hpp"
+#include <glibmm/main.h>
 
 #include <unistd.h>
 
@@ -51,6 +52,15 @@ void Shell::bind_acts() {  // acts: win.proc-*, win.undo / redo
     add("trail-mark-rename", [this] { on_trail_mark_rename(); });
     add("trail-mark-delete", [this] { on_trail_mark_delete(); });
     m_app.set_trail(&m_trails_page.trail());
+    // s011: systemd units.
+    m_app.set_units(&m_units);
+    m_services_page.set_systemd(&m_systemd);
+    m_services_page.set_on_pick([this] { sync_acts(); });
+    add("unit-start",   [this] { on_unit_op(core::UnitOp::Start); });
+    add("unit-stop",    [this] { on_unit_op(core::UnitOp::Stop); });
+    add("unit-restart", [this] { on_unit_op(core::UnitOp::Restart); });
+    add("unit-enable",  [this] { on_unit_enable(true); });
+    add("unit-disable", [this] { on_unit_enable(false); });
     m_trails_page.set_window(this);
     m_trails_page.set_live_path([this] { return m_recorder.recording() ? m_recorder.path() : std::string(); });
     sync_acts();
@@ -79,6 +89,17 @@ void Shell::sync_acts() {  // acts: grey what can't apply now
     en("redo",           m_journal.can_redo());
     en("mark",           m_recorder.recording());
     en("copy-trail-query", !m_last_trail.empty());
+    {   // s011: from the list's state; a fresh refresh follows every action
+        const auto u = m_services_page.picked();
+        const bool act = u && (u->row.active == "active" || u->row.active == "activating" ||
+                               u->row.active == "reloading");
+        const bool idle = !Systemd::busy() && !elevate::busy();
+        en("unit-start",   idle && u && !act && u->row.load != "masked");
+        en("unit-stop",    idle && act);
+        en("unit-restart", idle && act);
+        en("unit-enable",  idle && u && u->row.file_state == "disabled");
+        en("unit-disable", idle && u && u->row.file_state == "enabled");
+    }
     en("trail-mark-add",    m_trails_page.trail().is_open());
     en("trail-mark-rename", m_trails_page.trail().is_open() && m_trails_page.selected_mark() != 0);
     en("trail-mark-delete", m_trails_page.trail().is_open() && m_trails_page.selected_mark() != 0);
@@ -86,9 +107,11 @@ void Shell::sync_acts() {  // acts: grey what can't apply now
 
 void Shell::report(const std::string& done, const std::string& err) {  // acts: status + log
     auto lg = log::get(log::Area::Shell);
-    // The status line of the tab in view (s010: Trails has its own).
-    if (m_stack.get_visible_child_name() == "trails") {
-        m_trails_page.set_status(err.empty() ? done : err, !err.empty());
+    // The status line of the tab in view (s010: Trails, s011: Services).
+    const std::string tab = m_stack.get_visible_child_name();
+    if (tab == "trails" || tab == "services") {
+        if (tab == "trails") m_trails_page.set_status(err.empty() ? done : err, !err.empty());
+        else m_services_page.set_status(err.empty() ? done : err, !err.empty());
         if (lg) { if (err.empty()) lg->info("act: {}", done); else lg->warn("act: {} -- {}", done, err); }
         sync_acts();
         return;
@@ -162,6 +185,7 @@ void Shell::on_undo() {  // acts: Ctrl+Z
     for (const auto& ref : r.selection)
         if (ref.kind == core::Ref::Kind::Proc) { m_proc_page.select_pid(ref.proc.pid); break; }
     m_trails_page.refresh_marks();
+    m_services_page.refresh();
     report("Undid " + r.label, !m_app.last_error().empty() ? m_app.last_error() : m_knobs.last_error());
 }
 
@@ -174,7 +198,40 @@ void Shell::on_redo() {  // acts: Ctrl+Shift+Z
     for (const auto& ref : r.selection)
         if (ref.kind == core::Ref::Kind::Proc) { m_proc_page.select_pid(ref.proc.pid); break; }
     m_trails_page.refresh_marks();
+    m_services_page.refresh();
     report("Redid " + r.label, !m_app.last_error().empty() ? m_app.last_error() : m_knobs.last_error());
+}
+
+// ── s011: systemd units ─────────────────────────────────────────────────────
+
+void Shell::on_unit_op(core::UnitOp op) {  // acts: confirm, then start / stop / restart
+    if (Systemd::busy() || elevate::busy()) return;
+    const auto u = m_services_page.picked();
+    if (!u) return;
+    const char* verb = op == core::UnitOp::Start ? "Start" : op == core::UnitOp::Stop ? "Stop" : "Restart";
+    const std::string what = std::string(verb) + " " + q(u->key.name) + "?";
+    std::string detail = u->row.description.empty() ? std::string() : u->row.description + ". ";
+    detail += op == core::UnitOp::Start   ? "It starts now; whether it starts at boot is Enable / Disable."
+            : op == core::UnitOp::Stop    ? "It stops now. This can't be undone -- Start runs it again as a new process."
+                                          : "It stops and starts again now. This can't be undone.";
+    if (u->key.scope == core::UnitScope::System) detail += " A system unit may ask for your password.";
+    dialogs::confirm(*this, what, detail, verb, [this, key = u->key, op, verb = std::string(verb)] {
+        const std::string e = op == core::UnitOp::Start ? core::units::start(m_app, key)
+                            : op == core::UnitOp::Stop  ? core::units::stop(m_app, key)
+                                                        : core::units::restart(m_app, key);
+        report(verb + std::string(" sent to ") + q(key.name), e);
+        // The job runs on; look again in a moment.
+        Glib::signal_timeout().connect_once([this] { m_services_page.refresh(); m_services_page.reload_log(); }, 1200);
+    });
+}
+
+void Shell::on_unit_enable(bool on) {  // acts: enable / disable (undoable)
+    if (Systemd::busy() || elevate::busy()) return;
+    const auto u = m_services_page.picked();
+    if (!u) return;
+    const std::string e = on ? core::units::enable(m_journal, m_app, u->key) : core::units::disable(m_journal, m_app, u->key);
+    report((on ? "Enabled " : "Disabled ") + q(u->key.name) + " (Ctrl+Z undoes)", e);
+    m_services_page.refresh();
 }
 
 }  // namespace trails

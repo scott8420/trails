@@ -22,6 +22,7 @@ void Shell::on_tab(const std::string& id) {  // handler: Alt+N / a tile / the ra
     m_stack.set_visible_child(id);
     select_rail(id);
     if (id == "trails") m_trails_page.shown();   // s010: newest recording, fresh file list
+    if (id == "services") m_services_page.shown();   // s011: the unit list, now
     // Paint at once rather than waiting up to a frame for the next snapshot.
     m_painted_seq = 0;
     on_frame();

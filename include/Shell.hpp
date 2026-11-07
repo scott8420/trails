@@ -9,6 +9,8 @@
 #include "pages/SensorsPage.hpp"
 #include "pages/GpuPage.hpp"
 #include "pages/TrailsPage.hpp"
+#include "pages/ServicesPage.hpp"
+#include "Systemd.hpp"
 #include "core/Sampler.hpp"
 #include "core/Tabs.hpp"
 #include "core/ProcActs.hpp"
@@ -110,6 +112,8 @@ private:
     void on_proc_end(bool kill);                 // category: acts: confirm, then TERM / KILL
     void on_undo();                              // category: acts: Ctrl+Z
     void on_redo();                              // category: acts: Ctrl+Shift+Z
+    void on_unit_op(core::UnitOp op);            // category: acts: confirm, then start / stop / restart
+    void on_unit_enable(bool on);                // category: acts: enable / disable (undoable)
     void report(const std::string& done, const std::string& err);   // category: acts: status line + log
 
     // ── record (s009) ──────────────────────────────────────────────────────
@@ -157,6 +161,7 @@ private:
     pages::SensorsPage   m_sensor_page;   // s008
     pages::GpuPage       m_gpu_page;      // s008
     pages::TrailsPage    m_trails_page;   // s010
+    pages::ServicesPage  m_services_page; // s011
 
     // Live.
     std::unique_ptr<core::Sampler> m_sampler;
@@ -168,6 +173,8 @@ private:
     core::SysProcOS     m_proc_os;
     core::ProcKnobStore m_knobs{m_proc_os};
     core::Recorder      m_recorder;
+    Systemd             m_systemd;                 // s011: the D-Bus side
+    core::UnitStore     m_units{&m_systemd};
     core::AppStore      m_app{m_knobs, &m_recorder};
     core::AppJournal    m_journal{m_app};
     std::map<std::string, Glib::RefPtr<Gio::SimpleAction>> m_act;

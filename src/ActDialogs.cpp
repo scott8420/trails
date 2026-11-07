@@ -178,6 +178,21 @@ void ask_text(Gtk::Window& parent, const std::string& title, const std::string& 
     entry->grab_focus();
 }
 
+void confirm(Gtk::Window& parent, const std::string& heading, const std::string& detail,
+             const std::string& button, std::function<void()> yes) {
+    auto d = Gtk::AlertDialog::create(heading);
+    d->set_detail(detail);
+    d->set_buttons({"Cancel", button});
+    d->set_cancel_button(0);
+    d->set_default_button(0);
+    d->set_modal(true);
+    d->choose(parent, [d, yes](Glib::RefPtr<Gio::AsyncResult>& res) {
+        try {
+            if (d->choose_finish(res) == 1) yes();
+        } catch (const Glib::Error&) {}
+    });
+}
+
 void confirm_end(Gtk::Window& parent, const std::string& name, int pid, bool kill,
                  std::function<void()> yes) {
     auto d = Gtk::AlertDialog::create((kill ? "Kill " : "Terminate ") + q(name) + "?");

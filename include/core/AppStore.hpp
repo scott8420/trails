@@ -12,13 +12,14 @@
 //   Ref::trail_mark(serial, id) -> the opened Trail's marker rows (s010);
 //                      the serial names the open() it belongs to, so a step
 //                      from a file since closed finds nothing
-//   (s011 adds services here.)
+//   Ref::of_unit(key)  -> UnitStore: a unit file enabled / disabled (s011)
 //
 // The one-door guard holds on every branch: a put with the door shut is a
 // stray, counted, and the selftest gate fails on it.
 #include "core/ProcActs.hpp"
 #include "core/Recorder.hpp"
 #include "core/Trail.hpp"
+#include "core/Units.hpp"
 #include "core/Undo.hpp"
 
 #include <functional>
@@ -28,16 +29,18 @@
 namespace trails::core {
 
 struct Ref {
-    enum class Kind { Proc, Mark, TrailMark } kind = Kind::Proc;
+    enum class Kind { Proc, Mark, TrailMark, Unit } kind = Kind::Proc;
     ProcKey      proc;
     std::int64_t mark = 0;
     std::int64_t owner = 0;   // TrailMark: Trail::serial()
-    static Ref of(const ProcKey& k) { return {Kind::Proc, k, 0, 0}; }
-    static Ref of_mark(std::int64_t id) { return {Kind::Mark, {}, id, 0}; }
-    static Ref of_trail_mark(std::int64_t serial, std::int64_t id) { return {Kind::TrailMark, {}, id, serial}; }
+    UnitKey      unit;        // Unit (s011)
+    static Ref of(const ProcKey& k) { return {Kind::Proc, k, 0, 0, {}}; }
+    static Ref of_mark(std::int64_t id) { return {Kind::Mark, {}, id, 0, {}}; }
+    static Ref of_trail_mark(std::int64_t serial, std::int64_t id) { return {Kind::TrailMark, {}, id, serial, {}}; }
+    static Ref of_unit(const UnitKey& k) { return {Kind::Unit, {}, 0, 0, k}; }
     bool operator==(const Ref&) const = default;
 };
-using Rec = std::variant<ProcKnobs, Marker>;
+using Rec = std::variant<ProcKnobs, Marker, UnitKnobs>;
 
 class AppStore {
 public:
@@ -52,6 +55,8 @@ public:
     ProcKnobStore& knobs() { return m_knobs; }
     Recorder*      recorder() { return m_rec; }
     void           set_trail(Trail* t) { m_trail = t; }
+    void           set_units(UnitStore* u) { m_units = u; }
+    UnitStore*     units() { return m_units; }
     Trail*         trail() { return m_trail; }
     const std::string& last_error() const { return m_err; }
     void           clear_error() { m_err.clear(); }
@@ -66,6 +71,7 @@ private:
     ProcKnobStore&        m_knobs;
     Recorder*             m_rec;
     Trail*                m_trail = nullptr;
+    UnitStore*            m_units = nullptr;
     std::string           m_err;
     std::function<bool()> m_door;
     int                   m_strays = 0;
@@ -85,5 +91,22 @@ std::int64_t add(AppJournal& j, AppStore& s, double t, const std::string& text, 
 std::string  rename(AppJournal& j, AppStore& s, std::int64_t id, const std::string& text);
 std::string  remove(AppJournal& j, AppStore& s, std::int64_t id);
 }  // namespace trailmarks
+
+// s011: systemd units. enable / disable are steps; start / stop / restart
+// are not (the UI confirms them) and go through UnitStore::control.
+namespace units {
+std::string enable(AppJournal& j, AppStore& s, const UnitKey& k);
+std::string disable(AppJournal& j, AppStore& s, const UnitKey& k);
+std::string start(AppStore& s, const UnitKey& k);
+std::string stop(AppStore& s, const UnitKey& k);
+std::string restart(AppStore& s, const UnitKey& k);
+
+struct Verb {
+    std::string name;
+    bool        undoable = true;
+    std::function<std::string(AppJournal&, AppStore&, const UnitKey&)> run;
+};
+const std::vector<Verb>& verbs();   // the selftest gate walks these
+}  // namespace units
 
 }  // namespace trails::core

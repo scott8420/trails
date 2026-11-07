@@ -102,6 +102,7 @@ void Shell::build_pages() {  // zone: one stack page per tab
         else if (t.id == "sensors")  page = &m_sensor_page;
         else if (t.id == "gpu")      page = &m_gpu_page;
         else if (t.id == "trails")   page = &m_trails_page;
+        else if (t.id == "services") page = &m_services_page;
         else                         page = &build_placeholder(t);
         m_stack.add(*page, std::string(t.id), std::string(t.title));
     }

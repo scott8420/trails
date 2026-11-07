@@ -43,6 +43,8 @@ void run_recorder_tests(     // s009: the .trail file, marks through the one jou
     const std::function<void(const std::string&, bool, const std::string&)>& check);
 void run_trail_tests(        // s010: reading a .trail back
     const std::function<void(const std::string&, bool, const std::string&)>& check);
+void run_unit_tests(         // s011: systemd units, the gate
+    const std::function<void(const std::string&, bool, const std::string&)>& check);
 void run_procacts_tests(     // s006: process actions, the gate, real syscalls
     const std::function<void(const std::string&, bool, const std::string&)>& check);
 
@@ -429,6 +431,7 @@ int main() {
     run_sensor_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
     run_recorder_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
     run_trail_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
+    run_unit_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
     run_procacts_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
 
     std::cout << "-----------------------------------------------\n";
