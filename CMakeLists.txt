@@ -50,6 +50,9 @@ add_library(trails_core STATIC
     src/core/probe/ProcTable.cpp
     src/core/probe/CpuInfo.cpp
     src/core/probe/Swap.cpp
+    # s007 -- mounts / statvfs / sys/block, and sys/class/net / wireless / addrs.
+    src/core/probe/Storage.cpp
+    src/core/probe/Links.cpp
     src/core/Sampler.cpp
     # s003 -- the one tab list (rail, pages, icons, Alt+N) and value formatting.
     src/core/Tabs.cpp
@@ -66,7 +69,7 @@ target_include_directories(trails_core PUBLIC include)
 target_include_directories(trails_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
 # ── Headless selftest -- exercises the core with no display ────────────────────
-add_executable(trails_selftest src/selftest.cpp src/selftest_sampler.cpp src/selftest_procacts.cpp)
+add_executable(trails_selftest src/selftest.cpp src/selftest_sampler.cpp src/selftest_procacts.cpp src/selftest_storage.cpp)
 find_package(Threads REQUIRED)
 
 # ── trails-helper -- the one thing that runs as root (s006) ────────────────────
@@ -132,6 +135,8 @@ add_executable(trails
     src/pages/CpuPage.cpp
     src/pages/MemoryPage.cpp
     src/pages/ProcessesPage.cpp
+    src/pages/DisksPage.cpp
+    src/pages/NetworkPage.cpp
     src/AboutWindow.cpp
     src/ShortcutsDialog.cpp
     src/Registry.cpp

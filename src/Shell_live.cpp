@@ -70,6 +70,8 @@ bool Shell::on_frame() {  // live: new snapshot? paint it
     else if (tab == "cpu")      m_cpu_page.paint(*snap);
     else if (tab == "memory")   m_mem_page.paint(*snap);
     else if (tab == "processes") { m_proc_page.paint(*snap); sync_acts(); }
+    else if (tab == "disks")    m_disk_page.paint(*snap);
+    else if (tab == "network")  m_net_page.paint(*snap);
     return true;
 }
 

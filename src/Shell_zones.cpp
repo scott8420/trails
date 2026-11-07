@@ -80,6 +80,8 @@ void Shell::build_pages() {  // zone: one stack page per tab
         else if (t.id == "cpu")      page = &m_cpu_page;
         else if (t.id == "memory")   page = &m_mem_page;
         else if (t.id == "processes") page = &m_proc_page;
+        else if (t.id == "disks")    page = &m_disk_page;
+        else if (t.id == "network")  page = &m_net_page;
         else                         page = &build_placeholder(t);
         m_stack.add(*page, std::string(t.id), std::string(t.title));
     }

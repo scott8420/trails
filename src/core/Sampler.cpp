@@ -156,6 +156,34 @@ std::shared_ptr<const Snapshot> Sampler::tick() {
         next_disk.emplace(d.name, std::move(d));
     }
 
+    // ── Storage + link facts (s007) ───────────────────────────────────────
+    for (const auto& d : s.disks) {
+        if (!d.in_total) continue;
+        probe::DiskInfo info;
+        if (probe::read_disk_info(cfg_.root, d.name, info)) s.disk_info.push_back(std::move(info));
+    }
+    {
+        std::vector<probe::Mount> mounts;
+        // No mountinfo (a stripped container, an old fixture): no filesystems, not an error.
+        if (probe::read_mounts(cfg_.root, mounts)) s.filesystems = group_filesystems(cfg_.root, mounts);
+    }
+    {
+        std::vector<probe::Wireless> wl;
+        probe::read_wireless(cfg_.root, wl);   // absent without Wi-Fi: not an error
+        std::vector<probe::IfAddr> addrs;
+        if (cfg_.root.empty() || cfg_.root == "/") addrs = probe::read_addrs();
+        for (const auto& n : s.net) {
+            LinkView lv;
+            probe::read_netlink(cfg_.root, n.name, lv.link);
+            lv.link.name = n.name;
+            for (const auto& w : wl)
+                if (w.name == n.name) { lv.has_signal = true; lv.quality = w.link; lv.level_dbm = w.level_dbm; }
+            for (const auto& a : addrs)
+                if (a.name == n.name) lv.addrs.push_back(a);
+            s.links.push_back(std::move(lv));
+        }
+    }
+
     // ── Processes ─────────────────────────────────────────────────────────
     std::vector<int> pids = probe::list_pids(cfg_.root);
     std::sort(pids.begin(), pids.end());
@@ -243,6 +271,48 @@ std::shared_ptr<const Snapshot> Sampler::tick() {
 
     std::shared_ptr<const Snapshot> out = std::move(snap);
     published_.store(out);
+    return out;
+}
+
+
+std::vector<FsView> group_filesystems(const std::string& root, const std::vector<probe::Mount>& mounts) {
+    std::vector<FsView> out;
+    std::vector<std::pair<unsigned, unsigned>> keys;   // parallel to out: major:minor
+    for (const auto& m : mounts) {
+        if (!probe::is_storage_mount(m)) continue;
+        const std::pair<unsigned, unsigned> key{m.major, m.minor};
+        std::size_t i = 0;
+        while (i < keys.size() && keys[i] != key) ++i;
+        if (i == keys.size()) {
+            keys.push_back(key);
+            FsView f;
+            f.source = m.source;
+            f.dev    = probe::dev_of_source(root, m.source);
+            f.fstype = m.fstype;
+            f.disks  = probe::disks_under(root, f.dev);
+            f.point  = m.point;
+            f.read_only = m.read_only;
+            out.push_back(std::move(f));
+        } else if (m.point.size() < out[i].point.size()) {
+            out[i].others.push_back(out[i].point);
+            out[i].point = m.point;
+            out[i].read_only = m.read_only;
+        } else {
+            out[i].others.push_back(m.point);
+        }
+        if (m.fstype == "btrfs")
+            out[i].subvols.emplace_back(m.subvol.empty() ? m.root : m.subvol, m.point);
+    }
+    for (auto& f : out) {
+        if (f.fstype == "btrfs") {   // the subvolume list says it better than "others"
+            f.others.clear();
+            std::sort(f.subvols.begin(), f.subvols.end(),
+                      [](const auto& a, const auto& b) { return a.second < b.second; });
+        }
+        std::sort(f.others.begin(), f.others.end());
+        probe::fs_usage(root, f.point, f.usage);
+    }
+    std::sort(out.begin(), out.end(), [](const FsView& a, const FsView& b) { return a.point < b.point; });
     return out;
 }
 

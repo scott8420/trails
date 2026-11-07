@@ -118,6 +118,56 @@ bool read_diskstats(const std::string& root, std::vector<DiskStat>& out);
 // zram sit on top of / beside real devices).
 bool disk_counts_in_total(const DiskStat& d);
 
+// ── /proc/self/mountinfo, statvfs (s007) ─────────────────────────────────────
+struct Mount {
+    unsigned    major = 0, minor = 0;   // btrfs: an anonymous 0:N, shared by its subvolumes
+    std::string root;                   // path INSIDE the filesystem ("/home" for a subvolume)
+    std::string point;                  // where it is mounted
+    std::string fstype, source;         // "btrfs", "/dev/nvme0n1p6"
+    std::string subvol;                 // btrfs "subvol=" option, "" otherwise
+    bool        read_only = false;
+};
+// Octal escapes (\040 = space) are decoded. Lines that don't parse are skipped.
+bool parse_mountinfo(std::string_view text, std::vector<Mount>& out);
+bool read_mounts(const std::string& root, std::vector<Mount>& out);   // root/proc/self/mountinfo
+// A filesystem on a block device worth showing: source under /dev/, not a
+// loop device (snaps, images) and not a pseudo filesystem.
+bool is_storage_mount(const Mount& m);
+
+struct FsUsage { std::uint64_t size = 0, used = 0, avail = 0; };   // avail: to non-root
+bool fs_usage(const std::string& root, const std::string& point, FsUsage& out);   // statvfs
+
+// ── /sys/block (s007) ────────────────────────────────────────────────────────
+struct DiskInfo {
+    std::string              name, model;   // model: device/model, else "" (VMs, Asahi NVMe say little)
+    std::uint64_t            size_bytes = 0;
+    bool                     rotational = false, removable = false;
+    std::vector<std::string> parts;         // partitions, in name order
+};
+bool read_disk_info(const std::string& root, const std::string& name, DiskInfo& out);
+// "/dev/nvme0n1p6" -> "nvme0n1p6"; "/dev/mapper/luks-x" -> the dm-N whose
+// dm/name is "luks-x"; anything else -> the text after /dev/.
+std::string dev_of_source(const std::string& root, const std::string& source);
+// The whole disk(s) a block device lives on: a whole disk is itself, a
+// partition is its parent, a dm / md device follows its slaves down.
+std::vector<std::string> disks_under(const std::string& root, const std::string& dev);
+
+// ── /sys/class/net, /proc/net/wireless, getifaddrs (s007) ────────────────────
+struct NetLink {
+    std::string name, operstate, mac;   // operstate: "up", "down", "unknown", ...
+    int         speed_mbps = -1;        // -1: not reported (Wi-Fi, virtual, down)
+    int         mtu = 0;
+    bool        wireless = false;       // sys/class/net/<if>/wireless
+    bool        virtual_if = false;     // sys/devices/virtual/net/<if> (lo, docker0, veth, tun)
+};
+bool read_netlink(const std::string& root, const std::string& name, NetLink& out);
+
+struct Wireless { std::string name; double link = 0, level_dbm = 0; };
+bool read_wireless(const std::string& root, std::vector<Wireless>& out);   // proc/net/wireless
+
+struct IfAddr { std::string name, addr; int prefix = 0; bool v6 = false; };
+std::vector<IfAddr> read_addrs();   // the LIVE system only (getifaddrs has no root path)
+
 // ── /proc/<pid>/stat ─────────────────────────────────────────────────────────
 struct ProcStat {
     int           pid = 0, ppid = 0;

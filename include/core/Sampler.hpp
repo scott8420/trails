@@ -46,6 +46,29 @@ struct DiskRate {
     bool        in_total = false;
 };
 
+// One filesystem (s007): every mount of it folded together. A btrfs volume
+// mounted as / (subvol=/root) and /home (subvol=/home) is ONE filesystem with
+// two subvolumes -- one usage, one bar, not two bars that each claim the disk.
+struct FsView {
+    std::string              dev;        // "nvme0n1p6", "dm-0"
+    std::string              source;     // "/dev/nvme0n1p6"
+    std::string              fstype;
+    std::vector<std::string> disks;      // the whole disks it lives on
+    std::string              point;      // the primary mount point (shortest)
+    std::vector<std::string> others;     // further mount points (bind mounts, non-btrfs)
+    std::vector<std::pair<std::string, std::string>> subvols;   // btrfs: subvolume -> mount point
+    probe::FsUsage           usage;
+    bool                     read_only = false;
+};
+std::vector<FsView> group_filesystems(const std::string& root, const std::vector<probe::Mount>& mounts);
+
+struct LinkView {                        // an interface's facts (s007), parallel to Snapshot::net
+    probe::NetLink              link;
+    bool                        has_signal = false;   // in proc/net/wireless
+    double                      quality = 0, level_dbm = 0;
+    std::vector<probe::IfAddr>  addrs;
+};
+
 struct ProcRow {
     int           pid = 0, ppid = 0;
     std::uint32_t uid = 0;
@@ -82,6 +105,9 @@ struct Snapshot {
     double                net_rx_bps = 0, net_tx_bps = 0;      // excludes loopback
     std::vector<DiskRate> disks;
     double                disk_read_bps = 0, disk_write_bps = 0; // real whole disks only
+    std::vector<probe::DiskInfo> disk_info;   // s007: the in_total whole disks, in diskstats order
+    std::vector<FsView>          filesystems; // s007: storage filesystems, by primary mount point
+    std::vector<LinkView>        links;       // s007: one per Snapshot::net entry, same order
 
     std::vector<ProcRow> procs;     // pid order
 

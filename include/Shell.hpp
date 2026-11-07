@@ -4,6 +4,8 @@
 #include "pages/CpuPage.hpp"
 #include "pages/MemoryPage.hpp"
 #include "pages/ProcessesPage.hpp"
+#include "pages/DisksPage.hpp"
+#include "pages/NetworkPage.hpp"
 #include "core/Sampler.hpp"
 #include "core/Tabs.hpp"
 #include "core/ProcActs.hpp"
@@ -125,6 +127,8 @@ private:
     pages::CpuPage    m_cpu_page;
     pages::MemoryPage m_mem_page;
     pages::ProcessesPage m_proc_page;
+    pages::DisksPage     m_disk_page;     // s007
+    pages::NetworkPage   m_net_page;      // s007
 
     // Live.
     std::unique_ptr<core::Sampler> m_sampler;
