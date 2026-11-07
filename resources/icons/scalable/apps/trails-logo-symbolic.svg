@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <!-- Trails: a bloodhound's paw print over a heartbeat trace. currentColor
+       throughout so GTK's symbolic pipeline recolours it to the theme fg. -->
+  <g fill="currentColor">
+    <ellipse cx="8" cy="10.6" rx="3.1" ry="2.6"/>
+    <ellipse cx="4.1" cy="6.9" rx="1.25" ry="1.6"/>
+    <ellipse cx="6.6" cy="4.6" rx="1.25" ry="1.7"/>
+    <ellipse cx="9.4" cy="4.6" rx="1.25" ry="1.7"/>
+    <ellipse cx="11.9" cy="6.9" rx="1.25" ry="1.6"/>
+  </g>
+</svg>

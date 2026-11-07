@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff7a3d"/>
+      <stop offset="0.55" stop-color="#e8366f"/>
+      <stop offset="1" stop-color="#7b3fe4"/>
+    </linearGradient>
+    <linearGradient id="trace" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5ff2c4"/>
+      <stop offset="1" stop-color="#ffe45c"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="26" fill="url(#bg)"/>
+  <rect x="8" y="8" width="112" height="56" rx="26" fill="#fff" opacity="0.08"/>
+  <!-- the trail: a pulse line across the face -->
+  <polyline points="18,86 40,86 48,70 58,100 68,62 76,86 110,86"
+            fill="none" stroke="url(#trace)" stroke-width="7"
+            stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- the hound's paw, on the scent -->
+  <g fill="#fff">
+    <ellipse cx="64" cy="48" rx="13" ry="11"/>
+    <ellipse cx="47" cy="33" rx="5.5" ry="7"/>
+    <ellipse cx="58" cy="23" rx="5.5" ry="7.5"/>
+    <ellipse cx="70" cy="23" rx="5.5" ry="7.5"/>
+    <ellipse cx="81" cy="33" rx="5.5" ry="7"/>
+  </g>
+</svg>

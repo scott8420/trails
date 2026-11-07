@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Trails
+GenericName=System Monitor
+Comment=Watch, record and act on what your system is doing
+Exec=@BINDIR@/trails
+Icon=io.github.scott8420.Trails
+Terminal=false
+Categories=GTK;System;Monitor;
+Keywords=monitor;btop;top;process;cpu;memory;disk;network;sensors;task;
+StartupNotify=true
+StartupWMClass=io.github.scott8420.Trails
