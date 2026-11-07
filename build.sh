@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Trails build.
-# Deps (Fedora): gtkmm4.0-devel spdlog-devel cmake gcc-c++ (ninja-build, ccache, mold optional)
-# Deps (Ubuntu): libgtkmm-4.0-dev libspdlog-dev cmake g++
+# Deps (Fedora): gtkmm4.0-devel spdlog-devel sqlite-devel cmake gcc-c++ (ninja-build, ccache, mold optional)
+# Deps (Ubuntu): libgtkmm-4.0-dev libspdlog-dev libsqlite3-dev cmake g++
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 gen=()

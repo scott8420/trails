@@ -22,6 +22,7 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTKMM REQUIRED gtkmm-4.0)
 find_package(spdlog REQUIRED)
+pkg_check_modules(SQLITE REQUIRED sqlite3)   # s009 (Fedora: sqlite-devel, Ubuntu: libsqlite3-dev)
 
 # ── trails_core -- the GTK-free core (the model side of the one real seam) ──────
 # No gtkmm on this library's link line, BY DESIGN: a stray UI include under
@@ -53,6 +54,9 @@ add_library(trails_core STATIC
     # s007 -- mounts / statvfs / sys/block, and sys/class/net / wireless / addrs.
     src/core/probe/Storage.cpp
     src/core/probe/Links.cpp
+    # s008 -- hwmon, power_supply, drm cards + fdinfo engine time.
+    src/core/probe/Sensors.cpp
+    src/core/probe/Gpu.cpp
     src/core/Sampler.cpp
     # s003 -- the one tab list (rail, pages, icons, Alt+N) and value formatting.
     src/core/Tabs.cpp
@@ -62,14 +66,21 @@ add_library(trails_core STATIC
     # s006 -- process actions: the knob store the journal writes through, the
     # syscalls (SysProcOS) and the verb table the selftest gate walks.
     src/core/ProcActs.cpp
+    # s009 -- the recorder (SQLite writer thread) and the app-wide store the one
+    # journal writes through (process knobs + marks).
+    src/core/Recorder.cpp
+    src/core/AppStore.cpp
 )
 target_include_directories(trails_core PUBLIC include)
+target_include_directories(trails_core PRIVATE ${SQLITE_INCLUDE_DIRS})
+target_link_libraries(trails_core PUBLIC ${SQLITE_LIBRARIES})
+target_link_directories(trails_core PUBLIC ${SQLITE_LIBRARY_DIRS})
 # Vendored nlohmann/json (header-only, MIT), PRIVATE -- an implementation detail
 # of the pump, no consumer inherits the include (CANON: surprise-free build).
 target_include_directories(trails_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
 # ── Headless selftest -- exercises the core with no display ────────────────────
-add_executable(trails_selftest src/selftest.cpp src/selftest_sampler.cpp src/selftest_procacts.cpp src/selftest_storage.cpp)
+add_executable(trails_selftest src/selftest.cpp src/selftest_sampler.cpp src/selftest_procacts.cpp src/selftest_storage.cpp src/selftest_sensors.cpp src/selftest_recorder.cpp)
 find_package(Threads REQUIRED)
 
 # ── trails-helper -- the one thing that runs as root (s006) ────────────────────
@@ -127,6 +138,7 @@ add_executable(trails
     # s006 -- process actions: the verbs through the journal, the dialogs they
     # ask, and the pkexec door to trails-helper.
     src/Shell_acts.cpp
+    src/Shell_record.cpp
     src/ActDialogs.cpp
     src/Elevate.cpp
     src/widgets/Graph.cpp
@@ -137,6 +149,8 @@ add_executable(trails
     src/pages/ProcessesPage.cpp
     src/pages/DisksPage.cpp
     src/pages/NetworkPage.cpp
+    src/pages/SensorsPage.cpp
+    src/pages/GpuPage.cpp
     src/AboutWindow.cpp
     src/ShortcutsDialog.cpp
     src/Registry.cpp

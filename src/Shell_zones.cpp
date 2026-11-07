@@ -23,6 +23,23 @@ void Shell::build_shell() {  // zone: window + rail + stack
     m_logo_button.set_action_name("win.about");
     header->pack_start(m_logo_button);
 
+    // s009: the record button, its Mark companion, and a status line.
+    m_rec_button.set_action_name("win.record");
+    m_rec_button.add_css_class("record-button");
+    m_mark_button.set_label("Mark");
+    m_mark_button.set_action_name("win.mark");
+    m_mark_button.set_tooltip_text("Drop a mark at this moment (Ctrl+M). Ctrl+Z removes it.");
+    m_rec_status.add_css_class("dim-label");
+    m_rec_status.add_css_class("numeric");
+    header->pack_start(m_rec_button);
+    header->pack_start(m_mark_button);
+    header->pack_start(m_rec_status);
+    m_copy_button.set_icon_name("edit-copy-symbolic");
+    m_copy_button.set_has_frame(false);
+    m_copy_button.set_action_name("win.copy-trail-query");
+    m_copy_button.set_visible(false);   // until there is a recording
+    header->pack_start(m_copy_button);
+
     m_menu_button.set_icon_name("open-menu-symbolic");
     m_menu_button.set_menu_model(build_menu());
     header->pack_end(m_menu_button);
@@ -82,6 +99,8 @@ void Shell::build_pages() {  // zone: one stack page per tab
         else if (t.id == "processes") page = &m_proc_page;
         else if (t.id == "disks")    page = &m_disk_page;
         else if (t.id == "network")  page = &m_net_page;
+        else if (t.id == "sensors")  page = &m_sensor_page;
+        else if (t.id == "gpu")      page = &m_gpu_page;
         else                         page = &build_placeholder(t);
         m_stack.add(*page, std::string(t.id), std::string(t.title));
     }
@@ -157,6 +176,11 @@ Glib::RefPtr<Gio::Menu> Shell::build_menu() {  // zone: hamburger model
     edit->append("Undo", "win.undo");
     edit->append("Redo", "win.redo");
     menu->append_section(edit);
+
+    auto rec = Gio::Menu::create();    // s009
+    rec->append("Open Recordings Folder", "win.open-recordings");
+    rec->append("Copy sqlite3 Command for the Recording", "win.copy-trail-query");
+    menu->append_section(rec);
 
     auto help = Gio::Menu::create();
     help->append("Keyboard Shortcuts", "win.shortcuts");

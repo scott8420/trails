@@ -6,9 +6,13 @@
 #include "pages/ProcessesPage.hpp"
 #include "pages/DisksPage.hpp"
 #include "pages/NetworkPage.hpp"
+#include "pages/SensorsPage.hpp"
+#include "pages/GpuPage.hpp"
 #include "core/Sampler.hpp"
 #include "core/Tabs.hpp"
 #include "core/ProcActs.hpp"
+#include "core/AppStore.hpp"
+#include "core/Recorder.hpp"
 
 #include <gtkmm/applicationwindow.h>
 #include <gtkmm/flowbox.h>
@@ -41,6 +45,8 @@
 //               File: src/Shell_live.cpp
 //   Acts     -- the verbs that CHANGE something (s006): process actions and
 //               undo / redo, through the journal. File: src/Shell_acts.cpp
+//   Record   -- the record button (s009): start / stop the Recorder, marks,
+//               the header status. File: src/Shell_record.cpp
 //   Helpers  -- reusable sync called from the others.  File: src/Shell_helpers.cpp
 //   Glue     -- the ctor + build_ui() (the ordered pass). File: src/Shell.cpp
 //
@@ -54,6 +60,7 @@
 //   "Where does the tab list come from?"  -> core/Tabs.cpp (one list for all of it)
 //   "Where is the CPU / Memory tab?"      -> pages/CpuPage, pages/MemoryPage (s004)
 //   "What does Terminate / Renice do?"    -> Shell_acts.cpp -> core/ProcActs (the verbs)
+//   "Where does a recording go?"          -> Shell_record.cpp -> core/Recorder (SQLite)
 //   "What runs as root?"                  -> src/helper/trails_helper.cpp, via Elevate.cpp
 // ─────────────────────────────────────────────────────────────────────────────
 namespace trails {
@@ -104,12 +111,26 @@ private:
     void on_redo();                              // category: acts: Ctrl+Shift+Z
     void report(const std::string& done, const std::string& err);   // category: acts: status line + log
 
+    // ── record (s009) ──────────────────────────────────────────────────────
+    void on_record();                            // category: record: start / stop (Ctrl+R)
+    void on_mark();                              // category: record: a mark now (Ctrl+M, undoable)
+    void on_open_recordings();                   // category: record: the folder, in Files
+    void on_copy_trail_query();                  // category: record: sqlite3 command on the clipboard
+    void paint_record();                         // category: record: button label, status, greying
+
     // ── helpers ────────────────────────────────────────────────────────────
     void select_rail(const std::string& id);     // category: helper: rail row follows the stack
 
     // Titlebar: brand logo (start) + hamburger (end).
     widgets::Button     m_logo_button;
     widgets::MenuButton m_menu_button;
+    widgets::Button     m_rec_button;     // s009: "Record" / "Stop"
+    widgets::Button     m_mark_button;    // s009: visible while recording
+    Gtk::Label          m_rec_status;     // s009: "00:12:34 · 3 marks" or why it stopped
+    widgets::Button     m_copy_button;    // s009: copy the sqlite3 command for this / the last .trail
+    std::string         m_last_trail;     // the recording now, or the last one made this run
+    int                 m_marks_made = 0;
+    bool                m_rec_was_on = false;
 
     // Body: tab rail | stack.
     widgets::Box            m_body;        // horizontal
@@ -129,16 +150,21 @@ private:
     pages::ProcessesPage m_proc_page;
     pages::DisksPage     m_disk_page;     // s007
     pages::NetworkPage   m_net_page;      // s007
+    pages::SensorsPage   m_sensor_page;   // s008
+    pages::GpuPage       m_gpu_page;      // s008
 
     // Live.
     std::unique_ptr<core::Sampler> m_sampler;
     sigc::connection               m_frame;
     std::uint64_t                  m_painted_seq = 0;
 
-    // Acts (s006): the OS, the store over it, the journal over that.
+    // Acts (s006, s009): the OS, the knob store over it, the recorder, the ONE
+    // app store over both, the ONE journal over that.
     core::SysProcOS     m_proc_os;
     core::ProcKnobStore m_knobs{m_proc_os};
-    core::ProcJournal   m_journal{m_knobs};
+    core::Recorder      m_recorder;
+    core::AppStore      m_app{m_knobs, &m_recorder};
+    core::AppJournal    m_journal{m_app};
     std::map<std::string, Glib::RefPtr<Gio::SimpleAction>> m_act;
 
     std::unique_ptr<AboutWindow>     m_about;

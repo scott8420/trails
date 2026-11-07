@@ -135,3 +135,8 @@
 .core-mhz  { font-size: 0.9em; opacity: 0.7; }
 .kv-value  { font-weight: 700; font-feature-settings: "tnum"; }
 .tab-cpu .core-pct { color: @c_cpu; }
+
+/* s009 -- the record button: red dot at rest, solid red while recording. */
+.record-button { font-weight: 700; }
+.record-button:not(.recording) { color: #e01b24; }
+.record-button.recording { background: #e01b24; color: white; }

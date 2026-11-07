@@ -1,6 +1,7 @@
 // selftest -- s006 process actions: the knob store, the gate over every verb,
 // pid reuse, refusals, and the real syscalls on a child we fork.
 #include "core/ProcActs.hpp"
+#include "core/AppStore.hpp"
 
 #include <signal.h>
 #include <sys/wait.h>
@@ -63,7 +64,8 @@ public:
 
 struct Fix {
     FakeOS             os;
-    core::ProcKnobStore s{os};
+    core::ProcKnobStore ks{os};
+    core::AppStore      s{ks};
     core::ProcJournal   j{s};
     core::ProcKey       k{4242, 777};
     Fix() {
@@ -114,7 +116,7 @@ void run_procacts_tests(const CheckFn& check_fn) {
         }
     }
     {   Fix f;
-        f.s.put(f.k, core::ProcKnobs{5, {0}, false});
+        f.s.put(core::Ref::of(f.k), core::Rec{core::ProcKnobs{5, {0}, false}});
         check("gate: a write around the door is a stray", f.s.strays() == 1, "");
     }
 
@@ -134,7 +136,7 @@ void run_procacts_tests(const CheckFn& check_fn) {
         f.os.procs[4242] = {999, {0, {0, 1, 2, 3}, false}};   // exited; the pid was reused
         const auto r = f.j.undo();
         check("reuse: undo does not touch the stranger", f.os.procs[4242].k.nice == 0 && r.done, "");
-        check("reuse: the store says why", f.s.last_error() == "The process has exited.", f.s.last_error());
+        check("reuse: the store says why", f.ks.last_error() == "The process has exited.", f.ks.last_error());
         const std::string e = pa::stop(f.j, f.s, core::ProcKey{4242, 777}, "a");
         check("reuse: a verb on the old key refuses", !e.empty() && !f.os.procs[4242].k.stopped, e);
     }
@@ -163,7 +165,8 @@ void run_procacts_tests(const CheckFn& check_fn) {
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         int elevated = 0;
         core::SysProcOS os("/", [&](const std::vector<std::string>&) { ++elevated; return std::string("denied"); });
-        core::ProcKnobStore s(os);
+        core::ProcKnobStore ks(os);
+        core::AppStore s(ks);
         core::ProcJournal j(s);
         s.set_door([&] { return j.open(); });
         const core::ProcKey k{child, start};
@@ -189,7 +192,7 @@ void run_procacts_tests(const CheckFn& check_fn) {
         if (::geteuid() == 0)
             check("real: undo renice (root, direct)", os.read(k)->nice == first->nice && elevated == 0, "");
         else
-            check("real: undo renice asks the elevator", elevated == 1 && s.last_error() == "denied", s.last_error());
+            check("real: undo renice asks the elevator", elevated == 1 && ks.last_error() == "denied", ks.last_error());
 
         e = pa::terminate(s, k);
         int status = 0;

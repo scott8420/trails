@@ -1,6 +1,7 @@
 #include "core/Sampler.hpp"
 
 #include <algorithm>
+#include <map>
 #include <unistd.h>
 
 namespace trails::core {
@@ -69,6 +70,7 @@ void Sampler::push(const std::string& id, double v) {
         it = series_.emplace(id, SeriesSlot{Ring<float>(cfg_.history), 0}).first;
     it->second.ring.push(static_cast<float>(v));
     it->second.updated = seq_;
+    now_[id] = static_cast<float>(v);   // s009: what THIS tick measured (the recorder's row)
 }
 
 std::shared_ptr<const Snapshot> Sampler::tick() {
@@ -184,6 +186,35 @@ std::shared_ptr<const Snapshot> Sampler::tick() {
         }
     }
 
+    // ── Sensors & Power, GPU (s008) ───────────────────────────────────────
+    probe::read_hwmon(cfg_.root, s.hwmon);            // absent: no sensors, not an error
+    probe::read_power_supplies(cfg_.root, s.power);
+    for (const auto& c : s.hwmon)
+        for (const auto& x : c.sensors)
+            // Ignore nonsense (unplugged probes read -128 or 127+, some 0).
+            if (x.kind == "temp" && !x.fault && x.value > 0 && x.value < 150 && x.value > s.temp_max) {
+                s.temp_max = x.value;
+                s.temp_max_name = probe::chip_title(c.name) + " \u00b7 " + (x.label.empty() ? x.key : x.label);
+            }
+    probe::read_drm(cfg_.root, s.drm);
+    {
+        std::map<std::string, std::uint64_t> now;
+        for (const auto& e : probe::read_drm_engines(cfg_.root)) now[e.driver + "/" + e.engine] = e.ns;
+        if (have_prev_ && s.dt > 0)
+            for (const auto& [k, ns] : now) {
+                auto p = prev_gpu_.find(k);
+                if (p == prev_gpu_.end() || ns < p->second) continue;   // new client set / reset
+                const auto slash = k.find('/');
+                GpuEngine g{k.substr(0, slash), k.substr(slash + 1),
+                            std::min(100.0, 100.0 * double(ns - p->second) / (s.dt * 1e9))};
+                s.gpu_busy = std::max(s.gpu_busy, g.busy_pct);
+                s.gpu_engines.push_back(std::move(g));
+            }
+        prev_gpu_ = std::move(now);
+        for (const auto& c : s.drm)
+            if (c.busy >= 0) s.gpu_busy = std::max(s.gpu_busy, double(c.busy));
+    }
+
     // ── Processes ─────────────────────────────────────────────────────────
     std::vector<int> pids = probe::list_pids(cfg_.root);
     std::sort(pids.begin(), pids.end());
@@ -246,6 +277,14 @@ std::shared_ptr<const Snapshot> Sampler::tick() {
             push("net." + n.name + ".rx", n.rx_bps);
             push("net." + n.name + ".tx", n.tx_bps);
         }
+        if (s.temp_max > 0) push("temp.max", s.temp_max);
+        if (s.gpu_busy >= 0) push("gpu.busy", s.gpu_busy);
+        for (const auto& p : s.power)
+            if (p.type == "Battery") { push("battery.power", p.power); break; }
+        for (const auto& c : s.hwmon)
+            for (const auto& x : c.sensors)
+                if (!x.fault && (x.kind == "temp" || x.kind == "fan" || x.kind == "power"))
+                    push("hw." + c.id + "." + x.key, x.value);
         push("disk.read", s.disk_read_bps);
         push("disk.write", s.disk_write_bps);
         for (const auto& d : s.disks) {
@@ -261,6 +300,8 @@ std::shared_ptr<const Snapshot> Sampler::tick() {
         });
     }
     for (const auto& [id, slot] : series_) s.series.emplace(id, slot.ring);
+    s.now = std::move(now_);
+    now_.clear();
 
     s.error = std::move(err);
     prev_cpu_ = std::move(cpu);
@@ -271,6 +312,10 @@ std::shared_ptr<const Snapshot> Sampler::tick() {
 
     std::shared_ptr<const Snapshot> out = std::move(snap);
     published_.store(out);
+    {   // s009: the recorder hears every tick, whatever the UI is doing.
+        std::lock_guard ll(listen_mu_);
+        if (listener_) listener_(out);
+    }
     return out;
 }
 

@@ -42,6 +42,10 @@ void Shell::start_sampling() {  // live: Sampler + frame tick up
     if (const char* r = std::getenv("TRAILS_ROOT"); r && *r) cfg.root = r;
     m_sampler = std::make_unique<core::Sampler>(cfg);
     m_proc_page.set_root(cfg.root);
+    // s009: every published tick goes to the recorder (it ignores them
+    // unless recording) -- on the sampler thread, so recording never
+    // depends on which tab is showing or whether the window is drawn.
+    m_sampler->set_listener([this](std::shared_ptr<const core::Snapshot> s) { m_recorder.push(std::move(s)); });
     m_sampler->start();
     m_frame = Glib::signal_timeout().connect(sigc::mem_fun(*this, &Shell::on_frame), kFrameMs);
     if (auto lg = log::get(log::Area::Shell))
@@ -72,6 +76,9 @@ bool Shell::on_frame() {  // live: new snapshot? paint it
     else if (tab == "processes") { m_proc_page.paint(*snap); sync_acts(); }
     else if (tab == "disks")    m_disk_page.paint(*snap);
     else if (tab == "network")  m_net_page.paint(*snap);
+    else if (tab == "sensors")  m_sensor_page.paint(*snap);
+    else if (tab == "gpu")      m_gpu_page.paint(*snap);
+    paint_record();   // s009: elapsed time, or why a recording stopped
     return true;
 }
 

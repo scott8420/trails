@@ -168,6 +168,61 @@ bool read_wireless(const std::string& root, std::vector<Wireless>& out);   // pr
 struct IfAddr { std::string name, addr; int prefix = 0; bool v6 = false; };
 std::vector<IfAddr> read_addrs();   // the LIVE system only (getifaddrs has no root path)
 
+// ── /sys/class/hwmon (s008) ──────────────────────────────────────────────────
+// Data-driven: every chip, every <kind><N>_input it has. No chip is named in
+// code except for a friendlier title (chip_title). Values in display units.
+struct Sensor {
+    std::string kind;    // "temp" (degC), "fan" (RPM), "in" (V), "curr" (A), "power" (W)
+    std::string key;     // "temp1"
+    std::string label;   // <key>_label, "" if none
+    double      value = 0;
+    double      min = -1, max = -1, target = -1;   // fans: <0 = not reported
+    bool        fault = false;                      // <key>_fault = 1: no value
+};
+struct HwmonChip {
+    std::string         id;      // "hwmon1"
+    std::string         name;    // "macsmc_hwmon"
+    std::vector<Sensor> sensors; // temp, fan, power, in, curr; by number within a kind
+};
+bool read_hwmon(const std::string& root, std::vector<HwmonChip>& out);   // chips by hwmon number
+// "macsmc_hwmon" -> "Apple SMC", "tas2764" -> "Speaker amplifier", ...; else the name.
+std::string chip_title(const std::string& name);
+
+// ── /sys/class/power_supply (s008) ───────────────────────────────────────────
+struct PowerSupply {
+    std::string name, type, status;     // type "Battery" / "Mains" / "USB"; status "Charging", ...
+    bool        online = false;         // Mains / USB: plugged in
+    int         capacity = -1;          // percent, -1 = not reported
+    double      energy_now = 0, energy_full = 0, energy_design = 0;   // Wh (from energy_* or charge_* x V)
+    double      power = 0;              // W, always >= 0 (power_now, else current x voltage)
+    double      voltage = 0;            // V
+    int         cycles = -1;
+    std::string model, maker, technology;
+    // Seconds to empty (discharging) or to full (charging); -1 when unknown.
+    double time_left() const;
+    double health() const { return energy_design > 0 ? 100.0 * energy_full / energy_design : -1; }
+};
+bool read_power_supplies(const std::string& root, std::vector<PowerSupply>& out);
+
+// ── /sys/class/drm + DRM fdinfo (s008) ───────────────────────────────────────
+struct DrmConnector { std::string name, status, mode; bool enabled = false; };   // "eDP-1", "connected", "3024x1964"
+struct DrmCard {
+    std::string               name;          // "card1"
+    std::string               driver;        // DRIVER= in device/uevent: "asahi", "apple-dcp"?, "amdgpu"
+    std::string               render;        // "renderD128" if this card has one
+    int                       busy = -1;     // device/gpu_busy_percent (amdgpu), -1 = none
+    std::uint64_t             vram_used = 0, vram_total = 0;   // device/mem_info_vram_* (amdgpu)
+    std::vector<DrmConnector> connectors;    // "card2-eDP-1" etc.
+};
+bool read_drm(const std::string& root, std::vector<DrmCard>& out);
+
+// GPU time per engine from /proc/<pid>/fdinfo of fds open on /dev/dri/*
+// (the drm-engine-<name>: <ns> ns keys every modern driver prints). Clients
+// are counted once (by drm-client-id per driver) however many fds share them.
+// Only processes we may read: your own, unless Trails runs as root.
+struct DrmEngineTime { std::string driver, engine; std::uint64_t ns = 0; };
+std::vector<DrmEngineTime> read_drm_engines(const std::string& root);
+
 // ── /proc/<pid>/stat ─────────────────────────────────────────────────────────
 struct ProcStat {
     int           pid = 0, ppid = 0;

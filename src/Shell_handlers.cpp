@@ -46,6 +46,7 @@ bool Shell::on_close() {  // handler: window closing
     // The sampler thread is joined HERE, while the window still exists,
     // rather than whenever the application gets round to deleting it.
     stop_sampling();
+    m_recorder.stop();   // s009: close the .trail cleanly (stop marker, WAL folded in)
     return false;   // let it close
 }
 

@@ -25,10 +25,10 @@ std::string q(const std::string& n) { return "“" + n + "”"; }
 
 void Shell::bind_acts() {  // acts: win.proc-*, win.undo / redo
     m_proc_os.set_elevator(elevate::run_helper);
-    m_knobs.set_door([this] { return m_journal.open(); });
+    m_app.set_door([this] { return m_journal.open(); });
     m_journal.set_selection_source([this] {
-        std::vector<core::ProcKey> v;
-        if (auto p = m_proc_page.picked()) v.push_back({p->pid, p->start});
+        std::vector<core::Ref> v;
+        if (auto p = m_proc_page.picked()) v.push_back(core::Ref::of(core::ProcKey{p->pid, p->start}));
         return v;
     });
     m_journal.set_on_change([this] { sync_acts(); });
@@ -43,6 +43,10 @@ void Shell::bind_acts() {  // acts: win.proc-*, win.undo / redo
     add("proc-kill",      [this] { on_proc_end(true); });
     add("undo",           [this] { on_undo(); });
     add("redo",           [this] { on_redo(); });
+    add("record",         [this] { on_record(); });            // s009, Shell_record.cpp
+    add("mark",           [this] { on_mark(); });
+    add("open-recordings",[this] { on_open_recordings(); });
+    add("copy-trail-query", [this] { on_copy_trail_query(); });
     sync_acts();
 }
 
@@ -67,6 +71,8 @@ void Shell::sync_acts() {  // acts: grey what can't apply now
     en("proc-kill",      ends);
     en("undo",           m_journal.can_undo());
     en("redo",           m_journal.can_redo());
+    en("mark",           m_recorder.recording());
+    en("copy-trail-query", !m_last_trail.empty());
 }
 
 void Shell::report(const std::string& done, const std::string& err) {  // acts: status + log
@@ -86,8 +92,8 @@ void Shell::on_proc_stop(bool stop) {  // acts: Stop / Continue
     const auto p = m_proc_page.picked();
     if (!p) return;
     const core::ProcKey key{p->pid, p->start};
-    const std::string e = stop ? core::procacts::stop(m_journal, m_knobs, key, p->name)
-                               : core::procacts::resume(m_journal, m_knobs, key, p->name);
+    const std::string e = stop ? core::procacts::stop(m_journal, m_app, key, p->name)
+                               : core::procacts::resume(m_journal, m_app, key, p->name);
     report((stop ? "Stopped " : "Continued ") + q(p->name), e);
 }
 
@@ -100,7 +106,7 @@ void Shell::on_proc_renice() {  // acts: ask, then renice
     if (!cur) { report("", "The process has exited."); return; }
     dialogs::ask_nice(*this, p->name, p->pid, cur->nice, [this, key, name = p->name](int v) {
         if (elevate::busy()) return;
-        const std::string e = core::procacts::renice(m_journal, m_knobs, key, name, v);
+        const std::string e = core::procacts::renice(m_journal, m_app, key, name, v);
         report("Reniced " + q(name) + " to " + std::to_string(v), e);
     });
 }
@@ -114,7 +120,7 @@ void Shell::on_proc_affinity() {  // acts: ask, then pin
     if (!cur) { report("", "The process has exited."); return; }
     dialogs::ask_cpus(*this, p->name, p->pid, cur->cpus, [this, key, name = p->name](std::vector<int> cpus) {
         if (elevate::busy()) return;
-        const std::string e = core::procacts::set_affinity(m_journal, m_knobs, key, name, cpus);
+        const std::string e = core::procacts::set_affinity(m_journal, m_app, key, name, cpus);
         report(q(name) + " may run on CPU " + core::procacts::cpus_to_text(cpus), e);
     });
 }
@@ -126,7 +132,7 @@ void Shell::on_proc_end(bool kill) {  // acts: confirm, then TERM / KILL
     const core::ProcKey key{p->pid, p->start};
     dialogs::confirm_end(*this, p->name, p->pid, kill, [this, key, kill, name = p->name] {
         if (elevate::busy()) return;
-        const std::string e = kill ? core::procacts::kill(m_knobs, key) : core::procacts::terminate(m_knobs, key);
+        const std::string e = kill ? core::procacts::kill(m_app, key) : core::procacts::terminate(m_app, key);
         report((kill ? "Killed " : "Asked ") + q(name) + (kill ? "" : " to quit"), e);
     });
 }
@@ -136,7 +142,8 @@ void Shell::on_undo() {  // acts: Ctrl+Z
     m_knobs.clear_error();
     const auto r = m_journal.undo();
     if (!r.done) return;
-    if (!r.selection.empty()) m_proc_page.select_pid(r.selection.front().pid);
+    for (const auto& ref : r.selection)
+        if (ref.kind == core::Ref::Kind::Proc) { m_proc_page.select_pid(ref.proc.pid); break; }
     report("Undid " + r.label, m_knobs.last_error());
 }
 
@@ -145,7 +152,8 @@ void Shell::on_redo() {  // acts: Ctrl+Shift+Z
     m_knobs.clear_error();
     const auto r = m_journal.redo();
     if (!r.done) return;
-    if (!r.selection.empty()) m_proc_page.select_pid(r.selection.front().pid);
+    for (const auto& ref : r.selection)
+        if (ref.kind == core::Ref::Kind::Proc) { m_proc_page.select_pid(ref.proc.pid); break; }
     report("Redid " + r.label, m_knobs.last_error());
 }
 

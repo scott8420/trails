@@ -1,5 +1,6 @@
 // core::ProcActs -- see the header for the why.
 #include "core/ProcActs.hpp"
+#include "core/AppStore.hpp"
 #include "core/probe/Probe.hpp"
 
 #include <sched.h>
@@ -192,14 +193,15 @@ bool read_start(const std::string& root, int pid, std::uint64_t& start) {
 namespace {
 // One knob change as one step. `edit` changes a copy of the current knobs.
 template <class Edit>
-std::string knob(ProcJournal& j, ProcKnobStore& s, const ProcKey& k, const std::string& label, Edit edit) {
+std::string knob(ProcJournal& j, AppStore& app, const ProcKey& k, const std::string& label, Edit edit) {
+    ProcKnobStore& s = app.knobs();
     s.clear_error();
-    j.run(label, {k}, [&] {
+    j.run(label, {Ref::of(k)}, [&] {
         auto cur = s.get(k);
         if (!cur) return;
         ProcKnobs v = *cur;
         edit(v);
-        s.put(k, v);
+        app.put(Ref::of(k), Rec{v});
     });
     if (!s.last_error().empty()) return s.last_error();
     if (!s.get(k)) return "The process has exited.";
@@ -208,11 +210,11 @@ std::string knob(ProcJournal& j, ProcKnobStore& s, const ProcKey& k, const std::
 std::string q(const std::string& name) { return "“" + name + "”"; }
 }  // namespace
 
-std::string renice(ProcJournal& j, ProcKnobStore& s, const ProcKey& k, const std::string& name, int nice) {
+std::string renice(ProcJournal& j, AppStore& s, const ProcKey& k, const std::string& name, int nice) {
     nice = std::clamp(nice, -20, 19);
     return knob(j, s, k, "Renice " + q(name), [nice](ProcKnobs& v) { v.nice = nice; });
 }
-std::string set_affinity(ProcJournal& j, ProcKnobStore& s, const ProcKey& k, const std::string& name,
+std::string set_affinity(ProcJournal& j, AppStore& s, const ProcKey& k, const std::string& name,
                          const std::vector<int>& cpus) {
     if (cpus.empty()) return "A process needs at least one CPU.";
     std::vector<int> c = cpus;
@@ -220,30 +222,30 @@ std::string set_affinity(ProcJournal& j, ProcKnobStore& s, const ProcKey& k, con
     c.erase(std::unique(c.begin(), c.end()), c.end());
     return knob(j, s, k, "CPU affinity " + q(name), [&c](ProcKnobs& v) { v.cpus = c; });
 }
-std::string stop(ProcJournal& j, ProcKnobStore& s, const ProcKey& k, const std::string& name) {
+std::string stop(ProcJournal& j, AppStore& s, const ProcKey& k, const std::string& name) {
     return knob(j, s, k, "Stop " + q(name), [](ProcKnobs& v) { v.stopped = true; });
 }
-std::string resume(ProcJournal& j, ProcKnobStore& s, const ProcKey& k, const std::string& name) {
+std::string resume(ProcJournal& j, AppStore& s, const ProcKey& k, const std::string& name) {
     return knob(j, s, k, "Continue " + q(name), [](ProcKnobs& v) { v.stopped = false; });
 }
-std::string terminate(ProcKnobStore& s, const ProcKey& k) { return s.end(k, SIGTERM); }
-std::string kill(ProcKnobStore& s, const ProcKey& k) { return s.end(k, SIGKILL); }
+std::string terminate(AppStore& s, const ProcKey& k) { return s.knobs().end(k, SIGTERM); }
+std::string kill(AppStore& s, const ProcKey& k) { return s.knobs().end(k, SIGKILL); }
 
 const std::vector<Verb>& verbs() {
     static const std::vector<Verb> v = {
-        {"renice", true, [](ProcJournal& j, ProcKnobStore& s, const ProcKey& k) {
-             const auto c = s.get(k);
+        {"renice", true, [](ProcJournal& j, AppStore& s, const ProcKey& k) {
+             const auto c = s.knobs().get(k);
              return renice(j, s, k, "p", c ? (c->nice < 19 ? c->nice + 5 : 10) : 5);
          }},
-        {"affinity", true, [](ProcJournal& j, ProcKnobStore& s, const ProcKey& k) {
+        {"affinity", true, [](ProcJournal& j, AppStore& s, const ProcKey& k) {
              return set_affinity(j, s, k, "p", {0});
          }},
-        {"stop", true, [](ProcJournal& j, ProcKnobStore& s, const ProcKey& k) { return stop(j, s, k, "p"); }},
-        {"continue", true, [](ProcJournal& j, ProcKnobStore& s, const ProcKey& k) { return resume(j, s, k, "p"); },
+        {"stop", true, [](ProcJournal& j, AppStore& s, const ProcKey& k) { return stop(j, s, k, "p"); }},
+        {"continue", true, [](ProcJournal& j, AppStore& s, const ProcKey& k) { return resume(j, s, k, "p"); },
          // A continue needs a stopped process.
-         [](ProcJournal& j, ProcKnobStore& s, const ProcKey& k) { stop(j, s, k, "p"); }},
-        {"terminate", false, [](ProcJournal&, ProcKnobStore& s, const ProcKey& k) { return terminate(s, k); }},
-        {"kill", false, [](ProcJournal&, ProcKnobStore& s, const ProcKey& k) { return kill(s, k); }},
+         [](ProcJournal& j, AppStore& s, const ProcKey& k) { stop(j, s, k, "p"); }},
+        {"terminate", false, [](ProcJournal&, AppStore& s, const ProcKey& k) { return terminate(s, k); }},
+        {"kill", false, [](ProcJournal&, AppStore& s, const ProcKey& k) { return kill(s, k); }},
     };
     return v;
 }

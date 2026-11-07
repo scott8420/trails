@@ -37,6 +37,10 @@ void run_procview_tests(     // s005: process tree, filter, users, fds
     const std::function<void(const std::string&, bool, const std::string&)>& check);
 void run_storage_tests(      // s007: mounts, btrfs subvolumes, disks, links
     const std::function<void(const std::string&, bool, const std::string&)>& check);
+void run_sensor_tests(       // s008: hwmon, power_supply, drm, fdinfo
+    const std::function<void(const std::string&, bool, const std::string&)>& check);
+void run_recorder_tests(     // s009: the .trail file, marks through the one journal
+    const std::function<void(const std::string&, bool, const std::string&)>& check);
 void run_procacts_tests(     // s006: process actions, the gate, real syscalls
     const std::function<void(const std::string&, bool, const std::string&)>& check);
 
@@ -420,6 +424,8 @@ int main() {
     run_cpu_mem_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
     run_procview_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
     run_storage_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
+    run_sensor_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
+    run_recorder_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
     run_procacts_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
 
     std::cout << "-----------------------------------------------\n";

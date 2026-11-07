@@ -108,7 +108,10 @@ private:
     int                   m_strays = 0;
 };
 
-using ProcJournal = Journal<ProcKnobStore>;
+// The verbs write through the app-wide store (core/AppStore.hpp, s009) so
+// ONE journal holds every undoable step.
+class AppStore;
+using ProcJournal = Journal<AppStore>;
 
 namespace procacts {
 
@@ -121,23 +124,23 @@ bool read_start(const std::string& root, int pid, std::uint64_t& start);
 
 // The verbs. Each returns "" on success, else what went wrong. `name` labels
 // the step: Renice “firefox”.
-std::string renice(ProcJournal& j, ProcKnobStore& s, const ProcKey& k, const std::string& name, int nice);
-std::string set_affinity(ProcJournal& j, ProcKnobStore& s, const ProcKey& k, const std::string& name,
+std::string renice(ProcJournal& j, AppStore& s, const ProcKey& k, const std::string& name, int nice);
+std::string set_affinity(ProcJournal& j, AppStore& s, const ProcKey& k, const std::string& name,
                          const std::vector<int>& cpus);
-std::string stop(ProcJournal& j, ProcKnobStore& s, const ProcKey& k, const std::string& name);
-std::string resume(ProcJournal& j, ProcKnobStore& s, const ProcKey& k, const std::string& name);
-std::string terminate(ProcKnobStore& s, const ProcKey& k);   // SIGTERM, confirmed by the UI
-std::string kill(ProcKnobStore& s, const ProcKey& k);        // SIGKILL, confirmed by the UI
+std::string stop(ProcJournal& j, AppStore& s, const ProcKey& k, const std::string& name);
+std::string resume(ProcJournal& j, AppStore& s, const ProcKey& k, const std::string& name);
+std::string terminate(AppStore& s, const ProcKey& k);   // SIGTERM, confirmed by the UI
+std::string kill(AppStore& s, const ProcKey& k);        // SIGKILL, confirmed by the UI
 
 // The verb table the selftest walks. Add a verb here in the same change that
 // adds its button (RULES "Undo from the first write").
 struct Verb {
     std::string name;
     bool        undoable = true;
-    std::function<std::string(ProcJournal&, ProcKnobStore&, const ProcKey&)> run;
+    std::function<std::string(ProcJournal&, AppStore&, const ProcKey&)> run;
     // Fixture set-up the verb needs first (continue: a stopped process).
     // The gate runs it, then clears the journal, then checks the verb alone.
-    std::function<void(ProcJournal&, ProcKnobStore&, const ProcKey&)> prepare = {};
+    std::function<void(ProcJournal&, AppStore&, const ProcKey&)> prepare = {};
 };
 const std::vector<Verb>& verbs();
 

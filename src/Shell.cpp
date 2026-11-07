@@ -11,6 +11,9 @@ namespace trails {
 Shell::Shell()
     : m_logo_button("shell.logo_button"),
       m_menu_button("shell.menu_button"),
+      m_rec_button("shell.record_button"),
+      m_mark_button("shell.mark_button"),
+      m_copy_button("shell.copy_trail_button"),
       m_body("shell.body", Gtk::Orientation::HORIZONTAL),
       m_rail_scroll("shell.rail_scroll"),
       m_rail("shell.rail"),
@@ -26,7 +29,10 @@ Shell::Shell()
     set_name("shell.window");
 }
 
-Shell::~Shell() { stop_sampling(); }
+Shell::~Shell() {
+    stop_sampling();      // first: the sampler thread feeds the recorder
+    m_recorder.stop();
+}
 
 // The ordered pass: construct the shell, build the pages, bind actions, then
 // start the sampler -- last, so the first frame finds every tile built.

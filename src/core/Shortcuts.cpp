@@ -132,6 +132,12 @@ const std::vector<ShortcutSpec>& shortcut_registry() {
         {"Processes", "", {}, "Del", "Terminate the selected process (asks first)"},
         {"Processes", "", {}, "Shift+Del", "Kill the selected process (asks first)"},
 
+        // ── Record (s009) ─────────────────────────────────────────────────────
+        {"Record", "win.record", {"<Ctrl>r"}, "", "Start / stop recording"},
+        {"Record", "win.mark",   {"<Ctrl>m"}, "", "Mark this moment in the recording (Ctrl+Z removes it)"},
+        {"Record", "win.copy-trail-query", {"<Ctrl><Shift>c"}, "",
+         "Copy a sqlite3 command that reads this (or the last) recording"},
+
         // ── Tabs (s003) ───────────────────────────────────────────────────────
         // One row per core::tab_registry() entry, in rail order; the selftest
         // checks the two lists agree. Alt+N is GNOME's tab-switch convention.

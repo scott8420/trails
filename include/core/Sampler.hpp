@@ -69,6 +69,11 @@ struct LinkView {                        // an interface's facts (s007), paralle
     std::vector<probe::IfAddr>  addrs;
 };
 
+struct GpuEngine {                       // s008: one DRM engine's share of the interval
+    std::string driver, engine;          // "amdgpu", "gfx"
+    double      busy_pct = 0;
+};
+
 struct ProcRow {
     int           pid = 0, ppid = 0;
     std::uint32_t uid = 0;
@@ -109,6 +114,15 @@ struct Snapshot {
     std::vector<FsView>          filesystems; // s007: storage filesystems, by primary mount point
     std::vector<LinkView>        links;       // s007: one per Snapshot::net entry, same order
 
+    // s008 -- Sensors & Power, GPU.
+    std::vector<probe::HwmonChip>   hwmon;       // every chip, sensorless ones too (the page hides them)
+    std::vector<probe::PowerSupply> power;       // batteries, adapters, USB-C sources
+    double                          temp_max = 0;   // hottest working temperature sensor, degC (0 = none)
+    std::string                     temp_max_name;  // "Apple SMC · Heatsink 1"
+    std::vector<probe::DrmCard>     drm;
+    std::vector<GpuEngine>          gpu_engines;  // from fdinfo, rates (needs two ticks)
+    double                          gpu_busy = -1;   // busiest engine / gpu_busy_percent; -1 = unknown
+
     std::vector<ProcRow> procs;     // pid order
 
     // History, oldest -> newest. Metric ids:
@@ -117,7 +131,12 @@ struct Snapshot {
     //   mem.used mem.used_pct mem.cache_pct swap.used swap.used_pct load.1
     //   net.rx net.tx net.<if>.rx net.<if>.tx
     //   disk.read disk.write disk.<dev>.read disk.<dev>.write disk.<dev>.busy
+    //   temp.max gpu.busy battery.power hw.<hwmonN>.<key> (temp / fan / power sensors)
     std::map<std::string, Ring<float>> series;
+    // s009: the values pushed THIS tick, by metric id. A metric whose source
+    // went quiet keeps its ring (it ages out) but is absent here, so the
+    // recorder never writes a stale value as if it were new.
+    std::map<std::string, float> now;
 
     std::string error;              // a source that failed this tick ("" = all read)
 
@@ -157,6 +176,11 @@ public:
     // One synchronous sample: read, derive, publish, return what was published.
     std::shared_ptr<const Snapshot> tick();
 
+    // s009: called on the sampling thread after each publish (the recorder
+    // enqueues there). Keep it quick; {} clears it.
+    using Listener = std::function<void(std::shared_ptr<const Snapshot>)>;
+    void set_listener(Listener f) { std::lock_guard ll(listen_mu_); listener_ = std::move(f); }
+
 private:
     struct ProcMemo {
         std::uint64_t starttime = 0, ticks = 0;
@@ -173,7 +197,10 @@ private:
     long          page_size_ = 4096;
     std::atomic<long long> interval_ms_;
 
-    std::mutex tick_mu_;          // tick() from the thread and from a caller never overlap
+    std::mutex tick_mu_;
+    std::mutex listen_mu_;
+    Listener   listener_;
+    std::map<std::string, float> now_;          // tick() from the thread and from a caller never overlap
     // --- previous raw readings (tick_mu_) ---
     std::uint64_t seq_ = 0;
     double        prev_t_ = 0;
@@ -181,6 +208,7 @@ private:
     probe::CpuStat prev_cpu_;
     std::unordered_map<std::string, probe::NetIf>    prev_net_;
     std::unordered_map<std::string, probe::DiskStat> prev_disk_;
+    std::map<std::string, std::uint64_t>             prev_gpu_;   // "driver/engine" -> ns (s008)
     std::unordered_map<int, ProcMemo>                procs_;
     std::map<std::string, SeriesSlot>                series_;
     std::string                                      cpu_model_;

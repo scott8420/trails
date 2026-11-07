@@ -4,7 +4,9 @@
 // hundred files a second.
 #include <charconv>
 #include <cstdint>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace trails::core::probe::detail {
 
@@ -39,5 +41,13 @@ inline bool next_line(std::string_view& s, std::string_view& line) {
     else { line = s.substr(0, nl); s.remove_prefix(nl + 1); }
     return true;
 }
+
+// s008: sysfs helpers (defined in Sensors.cpp; Storage / Links keep their
+// own older copies). sys_list: entries sorted; sys_line: first line, trimmed;
+// sys_num: sys_line parsed as a signed integer.
+std::vector<std::string> sys_list(const std::string& path);
+bool                     sys_exists(const std::string& path);
+std::string              sys_line(const std::string& path);
+bool                     sys_num(const std::string& path, long long& out);
 
 }  // namespace trails::core::probe::detail
