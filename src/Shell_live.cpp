@@ -5,6 +5,7 @@
 #include <glibmm/main.h>
 
 #include <cstdio>
+#include <cstdlib>
 
 // Shell_live.cpp -- LIVE. The sampler -> screen path (s003).
 //
@@ -35,11 +36,15 @@ std::string two(double v) {
 
 void Shell::start_sampling() {  // live: Sampler + frame tick up
     if (m_sampler) return;
-    m_sampler = std::make_unique<core::Sampler>();   // "/", 1 s, 300 samples
+    // TRAILS_ROOT (dev aid): sample a fixture tree instead of "/" -- e.g. an
+    // Asahi-shaped /proc + /sys to see P / E clusters on an x86 box.
+    core::SamplerConfig cfg;   // "/", 1 s, 300 samples
+    if (const char* r = std::getenv("TRAILS_ROOT"); r && *r) cfg.root = r;
+    m_sampler = std::make_unique<core::Sampler>(cfg);
     m_sampler->start();
     m_frame = Glib::signal_timeout().connect(sigc::mem_fun(*this, &Shell::on_frame), kFrameMs);
     if (auto lg = log::get(log::Area::Shell))
-        lg->info("sampling every {} ms", m_sampler->interval().count());
+        lg->info("sampling {} every {} ms", cfg.root, m_sampler->interval().count());
 }
 
 void Shell::stop_sampling() {  // live: both down (idempotent)
@@ -59,7 +64,10 @@ bool Shell::on_frame() {  // live: new snapshot? paint it
     if (!snap->error.empty())
         if (auto lg = log::get(log::Area::Io)) lg->warn("sample {}: unread {}", snap->seq, snap->error);
     // Only the visible page is painted; the others catch up when shown.
-    if (m_stack.get_visible_child_name() == "overview") paint_overview(*snap);
+    const std::string tab = m_stack.get_visible_child_name();
+    if      (tab == "overview") paint_overview(*snap);
+    else if (tab == "cpu")      m_cpu_page.paint(*snap);
+    else if (tab == "memory")   m_mem_page.paint(*snap);
     return true;
 }
 

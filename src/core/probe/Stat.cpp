@@ -57,7 +57,11 @@ bool read_stat(const std::string& root, CpuStat& out) {
             saw_all = parse_cpu_line(rest, out.all);
         } else if (key.size() > 3 && key.substr(0, 3) == "cpu") {
             CpuTimes t;
-            if (parse_cpu_line(rest, t)) out.cores.push_back(t);
+            int id = -1;
+            if (parse_cpu_line(rest, t) && to_num(key.substr(3), id)) {
+                out.cores.push_back(t);
+                out.core_ids.push_back(id);
+            }
         } else if (key == "ctxt") {
             next_num(rest, out.ctxt);
         } else if (key == "procs_running") {

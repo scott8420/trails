@@ -16,7 +16,7 @@ struct TabSpec {
     std::string_view title;     // rail label: "CPU"
     std::string_view icon;      // bundled symbolic icon: "trails-tab-cpu-symbolic"
     std::string_view css;       // colour class: "tab-cpu" (trails.css)
-    std::string_view arrives;   // "" = built; else the session that builds it ("s004")
+    std::string_view arrives;   // "" = built; else the session that builds it ("s005")
     std::string_view blurb;     // one line under the placeholder heading
 };
 

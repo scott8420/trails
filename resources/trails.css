@@ -114,3 +114,24 @@
 /* The theme paints a selected row's text in the selection fg (white); here
    the selection is a pale tab tint, so keep the normal text colour. */
 .rail row:selected { color: inherit; }
+
+/* ── s004: panels, core cards, sections ────────────────────────────────── */
+.panel {
+    padding: 18px 20px 14px 20px;
+    border-radius: 20px;
+    background-color: alpha(currentColor, 0.045);
+    border: 1px solid alpha(currentColor, 0.09);
+}
+.panel-title   { font-size: 1.5em; font-weight: 800; }
+.section-title { font-size: 1.15em; font-weight: 700; margin-top: 4px; }
+.core {
+    padding: 10px 12px 8px 12px;
+    border-radius: 14px;
+    background-color: alpha(currentColor, 0.045);
+    border: 1px solid alpha(currentColor, 0.08);
+}
+.core-name { font-weight: 700; }
+.core-pct  { font-weight: 800; }
+.core-mhz  { font-size: 0.9em; opacity: 0.7; }
+.kv-value  { font-weight: 700; font-feature-settings: "tnum"; }
+.tab-cpu .core-pct { color: @c_cpu; }

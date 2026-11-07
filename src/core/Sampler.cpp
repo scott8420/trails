@@ -96,12 +96,23 @@ std::shared_ptr<const Snapshot> Sampler::tick() {
     } else {
         s.core_busy.assign(cpu.cores.size(), 0.0);
     }
+    s.core_ids = cpu.core_ids;
+    {
+        const auto freq = probe::read_cpufreq(cfg_.root, cpu.core_ids);
+        s.core_mhz.reserve(freq.size());
+        for (const auto& f : freq) s.core_mhz.push_back(f.cur_khz / 1000.0);
+        s.clusters = probe::clusters_from(freq);
+    }
+    if (!model_read_) { cpu_model_ = probe::read_cpu_model(cfg_.root); model_read_ = true; }
+    s.cpu_model = cpu_model_;
     const std::uint64_t cpu_total_d =
         cpu_ok ? probe::delta(prev_cpu_.all.total(), cpu.all.total()) : 0;
 
     // ── Load / memory ─────────────────────────────────────────────────────
     if (!probe::read_loadavg(cfg_.root, s.load)) fail("proc/loadavg");
     if (!probe::read_meminfo(cfg_.root, s.mem)) fail("proc/meminfo");
+    probe::read_swaps(cfg_.root, s.swaps);   // absent = no swap: not an error
+    s.zram = probe::read_zram(cfg_.root);
 
     // ── Network ───────────────────────────────────────────────────────────
     std::vector<probe::NetIf> nets;
@@ -190,7 +201,16 @@ std::shared_ptr<const Snapshot> Sampler::tick() {
         push("mem.used", static_cast<double>(s.mem.used()));
         push("mem.used_pct", s.mem.total ? 100.0 * static_cast<double>(s.mem.used()) /
                                                static_cast<double>(s.mem.total) : 0.0);
+        push("mem.cache_pct", s.mem.total ? 100.0 * static_cast<double>(s.mem.cached + s.mem.buffers) /
+                                                static_cast<double>(s.mem.total) : 0.0);
         push("swap.used", static_cast<double>(s.mem.swap_used()));
+        push("swap.used_pct", s.mem.swap_total ? 100.0 * static_cast<double>(s.mem.swap_used()) /
+                                                     static_cast<double>(s.mem.swap_total) : 0.0);
+        {
+            double sum = 0; int n = 0;
+            for (double m : s.core_mhz) if (m > 0) { sum += m; ++n; }
+            if (n) push("cpu.mhz", sum / n);
+        }
         push("load.1", s.load.one);
         push("net.rx", s.net_rx_bps);
         push("net.tx", s.net_tx_bps);

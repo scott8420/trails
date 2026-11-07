@@ -7,9 +7,9 @@ const std::vector<TabSpec>& tab_registry() {
     static const std::vector<TabSpec> kTabs = {
         {"overview",  "Overview",        "trails-tab-overview-symbolic",  "tab-overview",  "",
          "Everything at a glance."},
-        {"cpu",       "CPU",             "trails-tab-cpu-symbolic",       "tab-cpu",       "s004",
+        {"cpu",       "CPU",             "trails-tab-cpu-symbolic",       "tab-cpu",       "",
          "Every core, its frequency, load, and the P / E clusters."},
-        {"memory",    "Memory",          "trails-tab-memory-symbolic",    "tab-memory",    "s004",
+        {"memory",    "Memory",          "trails-tab-memory-symbolic",    "tab-memory",    "",
          "Used, cached, buffers, swap and zram -- and who holds it."},
         {"processes", "Processes",       "trails-tab-processes-symbolic", "tab-processes", "s005",
          "Every process, tree or flat, sortable, with the actions to tame it."},

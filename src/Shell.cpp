@@ -22,6 +22,7 @@ Shell::Shell()
       m_tile_net("overview.network", "Network", "trails-tab-network-symbolic", "tab-network"),
       m_tile_procs("overview.processes", "Processes", "trails-tab-processes-symbolic",
                    "tab-processes") {
+    // m_cpu_page / m_mem_page default-construct (they name themselves).
     set_name("shell.window");
 }
 

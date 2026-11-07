@@ -40,7 +40,8 @@ struct CpuTimes {
 };
 struct CpuStat {
     CpuTimes              all;
-    std::vector<CpuTimes> cores;   // index = cpuN as listed (offline cores skipped by kernel)
+    std::vector<CpuTimes> cores;   // in /proc/stat order (offline cores are absent)
+    std::vector<int>      core_ids;// the N of each "cpuN" line, parallel to cores
     std::uint64_t         ctxt = 0;
     std::uint64_t         procs_running = 0;
 };
@@ -49,6 +50,21 @@ bool read_stat(const std::string& root, CpuStat& out);
 // Percentages of the interval between two readings (0..100).
 struct CpuPct { double busy = 0, user = 0, system = 0, iowait = 0; };
 CpuPct cpu_pct(const CpuTimes& before, const CpuTimes& after);
+
+// ── cpufreq + model + clusters (s004) ────────────────────────────────────────
+// sys/devices/system/cpu/cpuN/cpufreq/{scaling_cur_freq,cpuinfo_max_freq}, kHz.
+// Absent in VMs and some ARM boards: the entry stays 0 and the UI says so.
+struct CpuFreq { int cpu = 0; std::uint32_t cur_khz = 0, max_khz = 0; };
+std::vector<CpuFreq> read_cpufreq(const std::string& root, const std::vector<int>& cpus);
+// "model name" from proc/cpuinfo (x86); else proc/device-tree/model (Asahi:
+// "Apple MacBook Pro (14-inch, M1 Pro, 2021)"); else "".
+std::string read_cpu_model(const std::string& root);
+// Cores grouped by max frequency. Two groups -> "Efficiency" (slower) and
+// "Performance"; one -> "All cores"; more -> "Cluster k". `cores` holds
+// INDICES into the freq vector (= into CpuStat::cores). No freq data -> one
+// group with max_khz 0.
+struct Cluster { std::string name; std::uint32_t max_khz = 0; std::vector<int> cores; };
+std::vector<Cluster> clusters_from(const std::vector<CpuFreq>& freq);
 
 // ── /proc/loadavg ────────────────────────────────────────────────────────────
 struct LoadAvg { double one = 0, five = 0, fifteen = 0; int running = 0, total = 0; };
@@ -63,6 +79,22 @@ struct MemInfo {
     std::uint64_t swap_used() const { return swap_total > swap_free ? swap_total - swap_free : 0; }
 };
 bool read_meminfo(const std::string& root, MemInfo& out);
+
+// ── proc/swaps + sys/block/zram* (s004) ───────────────────────────────────────
+struct SwapDev {
+    std::string   name, type;       // "/dev/zram0", "partition"
+    std::uint64_t size = 0, used = 0;   // bytes
+    int           priority = 0;
+};
+bool read_swaps(const std::string& root, std::vector<SwapDev>& out);
+struct Zram {
+    std::string   name;             // "zram0"
+    std::uint64_t disksize = 0;     // configured capacity
+    std::uint64_t orig = 0;         // data stored, uncompressed
+    std::uint64_t compr = 0;        // ... compressed
+    std::uint64_t mem_used = 0;     // RAM it actually costs
+};
+std::vector<Zram> read_zram(const std::string& root);   // only devices with a disksize
 
 // ── /proc/net/dev ────────────────────────────────────────────────────────────
 struct NetIf {

@@ -68,8 +68,14 @@ struct Snapshot {
     int                 n_cpus = 0;
     probe::CpuPct       cpu;
     std::vector<double> core_busy;  // per core, 0..100
+    std::vector<int>    core_ids;   // the N of cpuN, parallel to core_busy
+    std::vector<double> core_mhz;   // current frequency; 0 = not reported (VMs)
+    std::vector<probe::Cluster> clusters;   // P / E groups (indices into core_*)
+    std::string         cpu_model;  // "" if nothing says
     probe::LoadAvg      load;
     probe::MemInfo      mem;
+    std::vector<probe::SwapDev> swaps;
+    std::vector<probe::Zram>    zram;
 
     std::vector<NetRate>  net;
     double                net_rx_bps = 0, net_tx_bps = 0;      // excludes loopback
@@ -80,7 +86,8 @@ struct Snapshot {
 
     // History, oldest -> newest. Metric ids:
     //   cpu.total cpu.user cpu.system cpu.iowait cpu.core.<N>
-    //   mem.used mem.used_pct swap.used load.1
+    //   cpu.mhz (mean of cores that report)
+    //   mem.used mem.used_pct mem.cache_pct swap.used swap.used_pct load.1
     //   net.rx net.tx net.<if>.rx net.<if>.tx
     //   disk.read disk.write disk.<dev>.read disk.<dev>.write disk.<dev>.busy
     std::map<std::string, Ring<float>> series;
@@ -149,6 +156,8 @@ private:
     std::unordered_map<std::string, probe::DiskStat> prev_disk_;
     std::unordered_map<int, ProcMemo>                procs_;
     std::map<std::string, SeriesSlot>                series_;
+    std::string                                      cpu_model_;
+    bool                                             model_read_ = false;
 
     std::atomic<std::shared_ptr<const Snapshot>> published_;
 

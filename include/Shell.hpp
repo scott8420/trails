@@ -1,6 +1,8 @@
 #pragma once
 #include "widgets/Widgets.hpp"
 #include "widgets/Tile.hpp"
+#include "pages/CpuPage.hpp"
+#include "pages/MemoryPage.hpp"
 #include "core/Sampler.hpp"
 #include "core/Tabs.hpp"
 
@@ -43,6 +45,7 @@
 //   "What does Alt+3 do?"                 -> core/Shortcuts.cpp -> win.tab::memory
 //                                            -> Shell_handlers.cpp (on_tab)
 //   "Where does the tab list come from?"  -> core/Tabs.cpp (one list for all of it)
+//   "Where is the CPU / Memory tab?"      -> pages/CpuPage, pages/MemoryPage (s004)
 // ─────────────────────────────────────────────────────────────────────────────
 namespace trails {
 
@@ -99,6 +102,10 @@ private:
     widgets::ScrolledWindow m_overview_scroll;
     Gtk::FlowBox            m_tiles;
     widgets::Tile           m_tile_cpu, m_tile_mem, m_tile_disk, m_tile_net, m_tile_procs;
+
+    // Built tabs (s004+): each page is its own class with paint(Snapshot).
+    pages::CpuPage    m_cpu_page;
+    pages::MemoryPage m_mem_page;
 
     // Live.
     std::unique_ptr<core::Sampler> m_sampler;

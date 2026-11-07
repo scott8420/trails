@@ -48,6 +48,8 @@ add_library(trails_core STATIC
     src/core/probe/NetDev.cpp
     src/core/probe/DiskStats.cpp
     src/core/probe/ProcTable.cpp
+    src/core/probe/CpuInfo.cpp
+    src/core/probe/Swap.cpp
     src/core/Sampler.cpp
     # s003 -- the one tab list (rail, pages, icons, Alt+N) and value formatting.
     src/core/Tabs.cpp
@@ -109,6 +111,9 @@ add_executable(trails
     src/Shell_live.cpp
     src/widgets/Graph.cpp
     src/widgets/Tile.cpp
+    src/widgets/Bar.cpp
+    src/pages/CpuPage.cpp
+    src/pages/MemoryPage.cpp
     src/AboutWindow.cpp
     src/ShortcutsDialog.cpp
     src/Registry.cpp

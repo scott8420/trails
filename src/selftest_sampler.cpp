@@ -431,10 +431,13 @@ void run_shell_core_tests(const Check& check) {
               tabs.size() == 10 && ids.size() == 10 && css.size() == 10 && icons.size() == 10,
               std::to_string(tabs.size()));
         check("tabs: every tab has title, blurb, symbolic icon, tab-<id> class", fields, "");
-        check("tabs: Overview first and built; the rest name their session",
+        check("tabs: Overview first and built; unbuilt tabs name their session",
               tabs.front().id == "overview" && tabs.front().arrives.empty() &&
               std::all_of(tabs.begin() + 1, tabs.end(),
-                          [](const auto& t) { return t.arrives.starts_with("s"); }), "");
+                          [](const auto& t) { return t.arrives.empty() || t.arrives.starts_with("s"); }), "");
+        check("tabs: CPU and Memory are built (s004)",
+              trails::core::find_tab("cpu")->arrives.empty() &&
+              trails::core::find_tab("memory")->arrives.empty(), "");
         check("tabs: find_tab hits and misses",
               trails::core::find_tab("cpu") && trails::core::find_tab("cpu")->title == "CPU" &&
               !trails::core::find_tab("nope"), "");
@@ -464,4 +467,108 @@ void run_shell_core_tests(const Check& check) {
         check("fmt: pct", fmt::pct(0) == "0%" && fmt::pct(7.46) == "7.5%" && fmt::pct(42.4) == "42%" &&
                           fmt::pct(250) == "100%", fmt::pct(7.46));
     }
+}
+
+// ── s004: cpufreq, model, P / E clusters, swaps, zram ─────────────────────────
+void run_cpu_mem_tests(const Check& check) {
+    // An M1 Pro as Asahi shows it: cpu0-1 efficiency (2.064 GHz max), cpu2-9
+    // performance (3.228 GHz max), 16 KiB pages, no "model name" in cpuinfo.
+    Fixture fx;
+    write_common(fx);
+    std::string stat = "cpu  100 0 50 800 50 0 0 0 0 0\n";
+    for (int c = 0; c < 10; ++c) stat += "cpu" + std::to_string(c) + " 10 0 5 80 5 0 0 0 0 0\n";
+    fx.file("proc/stat", stat);
+    for (int c = 0; c < 10; ++c) {
+        const std::string d = "sys/devices/system/cpu/cpu" + std::to_string(c) + "/cpufreq/";
+        const bool e = c < 2;
+        fx.file(d + "cpuinfo_max_freq", e ? "2064000\n" : "3228000\n");
+        fx.file(d + "scaling_cur_freq", e ? "600000\n" : "3000000\n");
+    }
+    fx.file("proc/cpuinfo", "processor\t: 0\nBogoMIPS\t: 48.00\nCPU implementer\t: 0x61\n");
+    fx.file("proc/device-tree/model", std::string("Apple MacBook Pro (14-inch, M1 Pro, 2021)\0", 42));
+    fx.file("proc/swaps",
+            "Filename\t\t\t\tType\t\tSize\t\tUsed\t\tPriority\n"
+            "/dev/zram0                              partition\t8388604\t\t1048576\t\t100\n"
+            "/var/swap/swapfile                      file\t\t4194300\t\t0\t\t-2\n");
+    fx.file("sys/block/zram0/disksize", "8589934592\n");
+    fx.file("sys/block/zram0/mm_stat", "1073741824 268435456 285212672 0 300000000 100 0 0 0\n");
+    fx.file("sys/block/zram1/disksize", "0\n");   // allocated, unused: skipped
+    const std::string R = fx.str();
+
+    probe::CpuStat c;
+    probe::read_stat(R, c);
+    check("stat: core ids kept alongside cores", c.core_ids.size() == 10 && c.core_ids[9] == 9, "");
+    {
+        Fixture gap;
+        gap.file("proc/stat", "cpu  1 0 1 1 0 0 0 0\ncpu0 1 0 1 1 0 0 0 0\ncpu2 1 0 1 1 0 0 0 0\n");
+        probe::CpuStat g;
+        probe::read_stat(gap.str(), g);
+        check("stat: an offline core leaves a gap in ids, not a renumber",
+              g.core_ids == std::vector<int>({0, 2}), "");
+    }
+
+    auto f = probe::read_cpufreq(R, c.core_ids);
+    check("cpufreq: cur + max per core, kHz",
+          f.size() == 10 && f[0].cur_khz == 600000 && f[0].max_khz == 2064000 &&
+          f[9].cur_khz == 3000000 && f[9].max_khz == 3228000, "");
+    check("cpufreq: absent (VM) -> zeros, no throw",
+          probe::read_cpufreq(R + "/nope", {0, 1}).at(1).max_khz == 0, "");
+
+    auto cl = probe::clusters_from(f);
+    check("clusters: two max frequencies -> Performance (first) + Efficiency",
+          cl.size() == 2 && cl[0].name == "Performance" && cl[0].cores.size() == 8 &&
+          cl[0].max_khz == 3228000 && cl[1].name == "Efficiency" &&
+          cl[1].cores == std::vector<int>({0, 1}),
+          cl.empty() ? "none" : cl[0].name);
+    {
+        std::vector<probe::CpuFreq> same = {{0, 1, 3000}, {1, 1, 3000}};
+        std::vector<probe::CpuFreq> none = {{0, 0, 0}, {1, 0, 0}};
+        std::vector<probe::CpuFreq> three = {{0, 1, 1000}, {1, 1, 2000}, {2, 1, 3000}};
+        check("clusters: one max -> 'All cores'; no data -> 'All cores' at 0; three -> numbered",
+              probe::clusters_from(same).size() == 1 && probe::clusters_from(same)[0].name == "All cores" &&
+              probe::clusters_from(none)[0].max_khz == 0 && probe::clusters_from(none)[0].cores.size() == 2 &&
+              probe::clusters_from(three).size() == 3 && probe::clusters_from(three)[0].max_khz == 3000 &&
+              probe::clusters_from(three)[0].name == "Cluster 3", "");
+    }
+
+    check("model: no 'model name' -> device-tree model, NUL trimmed",
+          probe::read_cpu_model(R) == "Apple MacBook Pro (14-inch, M1 Pro, 2021)", probe::read_cpu_model(R));
+    {
+        Fixture x86;
+        x86.file("proc/cpuinfo", "processor\t: 0\nmodel name\t: AMD Ryzen 7 5800X 8-Core Processor\n");
+        check("model: x86 'model name' wins", probe::read_cpu_model(x86.str()) ==
+              "AMD Ryzen 7 5800X 8-Core Processor", probe::read_cpu_model(x86.str()));
+    }
+
+    std::vector<probe::SwapDev> sw;
+    check("swaps: header skipped, KiB -> bytes, priority signed",
+          probe::read_swaps(R, sw) && sw.size() == 2 && sw[0].name == "/dev/zram0" &&
+          sw[0].used == 1048576ull * 1024 && sw[0].priority == 100 && sw[1].type == "file" &&
+          sw[1].priority == -2, std::to_string(sw.size()));
+    auto z = probe::read_zram(R);
+    check("zram: configured device read, unused one skipped",
+          z.size() == 1 && z[0].name == "zram0" && z[0].disksize == 8589934592ull &&
+          z[0].orig == 1073741824ull && z[0].compr == 268435456ull && z[0].mem_used == 285212672ull,
+          std::to_string(z.size()));
+
+    // Through the Sampler.
+    double t = 10;
+    core::SamplerConfig cfg;
+    cfg.root = R;
+    cfg.clock = [&] { return t; };
+    core::Sampler sm(cfg);
+    sm.tick();
+    t = 11;
+    auto s = sm.tick();
+    check("snapshot: core ids, MHz, clusters, model carried",
+          s->core_ids.size() == 10 && s->core_mhz.size() == 10 && near(s->core_mhz[0], 600) &&
+          near(s->core_mhz[5], 3000) && s->clusters.size() == 2 &&
+          s->cpu_model.find("M1 Pro") != std::string::npos, "");
+    check("snapshot: swaps + zram carried", s->swaps.size() == 2 && s->zram.size() == 1, "");
+    const auto* mhz = s->find("cpu.mhz");
+    check("series: cpu.mhz is the mean of reporting cores (2x600 + 8x3000)/10 = 2520",
+          mhz && near(mhz->back(), 2520, 1e-3), mhz ? num(mhz->back()) : "missing");
+    check("series: mem.cache_pct (5.1 of 16 GB = 31.875%) and swap.used_pct (25%)",
+          s->find("mem.cache_pct") && near(s->find("mem.cache_pct")->back(), 31.875, 1e-4) &&
+          s->find("swap.used_pct") && near(s->find("swap.used_pct")->back(), 25, 1e-4), "");
 }

@@ -75,8 +75,12 @@ void Shell::build_rail() {  // zone: the tab rail
 
 void Shell::build_pages() {  // zone: one stack page per tab
     for (const auto& t : core::tab_registry()) {
-        Gtk::Widget& page = (t.id == "overview") ? build_overview() : build_placeholder(t);
-        m_stack.add(page, std::string(t.id), std::string(t.title));
+        Gtk::Widget* page = nullptr;
+        if      (t.id == "overview") page = &build_overview();
+        else if (t.id == "cpu")      page = &m_cpu_page;
+        else if (t.id == "memory")   page = &m_mem_page;
+        else                         page = &build_placeholder(t);
+        m_stack.add(*page, std::string(t.id), std::string(t.title));
     }
 }
 
