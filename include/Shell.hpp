@@ -8,6 +8,7 @@
 #include "pages/NetworkPage.hpp"
 #include "pages/SensorsPage.hpp"
 #include "pages/GpuPage.hpp"
+#include "pages/TrailsPage.hpp"
 #include "core/Sampler.hpp"
 #include "core/Tabs.hpp"
 #include "core/ProcActs.hpp"
@@ -116,6 +117,9 @@ private:
     void on_mark();                              // category: record: a mark now (Ctrl+M, undoable)
     void on_open_recordings();                   // category: record: the folder, in Files
     void on_copy_trail_query();                  // category: record: sqlite3 command on the clipboard
+    void on_trail_mark_add();                    // category: record: a mark at the Trails cursor (undoable)
+    void on_trail_mark_rename();                 // category: record: ask, then rename (undoable)
+    void on_trail_mark_delete();                 // category: record: delete the picked mark (undoable)
     void paint_record();                         // category: record: button label, status, greying
 
     // ── helpers ────────────────────────────────────────────────────────────
@@ -152,6 +156,7 @@ private:
     pages::NetworkPage   m_net_page;      // s007
     pages::SensorsPage   m_sensor_page;   // s008
     pages::GpuPage       m_gpu_page;      // s008
+    pages::TrailsPage    m_trails_page;   // s010
 
     // Live.
     std::unique_ptr<core::Sampler> m_sampler;

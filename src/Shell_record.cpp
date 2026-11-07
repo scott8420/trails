@@ -1,5 +1,6 @@
 #include "Shell.hpp"
 #include "Log.hpp"
+#include "ActDialogs.hpp"
 
 #include <giomm/appinfo.h>
 #include <giomm/file.h>
@@ -104,6 +105,41 @@ void Shell::on_copy_trail_query() {  // record: sqlite3 command on the clipboard
     m_rec_status.set_text("Copied the sqlite3 command");
     m_rec_status.remove_css_class("error");
     if (auto lg = log::get(log::Area::Shell)) lg->info("record: copied {}", cmd);
+}
+
+// ── s010: marks in the opened trail (the Trails tab) -- through the ONE journal
+
+void Shell::on_trail_mark_add() {  // record: a mark at the cursor
+    std::string err;
+    const auto n = m_trails_page.trail().marks().size();
+    const std::string text = "Mark " + std::to_string(n + 1);
+    if (core::trailmarks::add(m_journal, m_app, m_trails_page.cursor(), text, &err)) {
+        m_trails_page.refresh_marks();
+        report("Added " + text, "");
+    } else {
+        report("Mark", err);
+    }
+}
+
+void Shell::on_trail_mark_rename() {  // record: ask, then rename
+    const auto id = m_trails_page.selected_mark();
+    if (!id) return;
+    const auto cur = m_trails_page.trail().get_mark(id);
+    if (!cur) return;
+    dialogs::ask_text(*this, "Rename Mark", "Name this moment", cur->text.empty() ? cur->kind : cur->text,
+                      [this, id](std::string text) {
+                          const std::string e = core::trailmarks::rename(m_journal, m_app, id, text);
+                          m_trails_page.refresh_marks();
+                          report("Renamed the mark", e);
+                      });
+}
+
+void Shell::on_trail_mark_delete() {  // record: delete the picked mark (Ctrl+Z puts it back)
+    const auto id = m_trails_page.selected_mark();
+    if (!id) return;
+    const std::string e = core::trailmarks::remove(m_journal, m_app, id);
+    m_trails_page.refresh_marks();
+    report("Deleted the mark (Ctrl+Z puts it back)", e);
 }
 
 void Shell::paint_record() {  // record: button, status, greying

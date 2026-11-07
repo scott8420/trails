@@ -70,6 +70,9 @@ add_library(trails_core STATIC
     # journal writes through (process knobs + marks).
     src/core/Recorder.cpp
     src/core/AppStore.cpp
+    # s010 -- reading a .trail back: downsampled series, procs at a moment,
+    # marks (journal records), CSV export.
+    src/core/Trail.cpp
 )
 target_include_directories(trails_core PUBLIC include)
 target_include_directories(trails_core PRIVATE ${SQLITE_INCLUDE_DIRS})
@@ -80,7 +83,7 @@ target_link_directories(trails_core PUBLIC ${SQLITE_LIBRARY_DIRS})
 target_include_directories(trails_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
 # ── Headless selftest -- exercises the core with no display ────────────────────
-add_executable(trails_selftest src/selftest.cpp src/selftest_sampler.cpp src/selftest_procacts.cpp src/selftest_storage.cpp src/selftest_sensors.cpp src/selftest_recorder.cpp)
+add_executable(trails_selftest src/selftest.cpp src/selftest_sampler.cpp src/selftest_procacts.cpp src/selftest_storage.cpp src/selftest_sensors.cpp src/selftest_recorder.cpp src/selftest_trail.cpp)
 find_package(Threads REQUIRED)
 
 # ── trails-helper -- the one thing that runs as root (s006) ────────────────────
@@ -151,6 +154,8 @@ add_executable(trails
     src/pages/NetworkPage.cpp
     src/pages/SensorsPage.cpp
     src/pages/GpuPage.cpp
+    src/pages/TrailsPage.cpp
+    src/widgets/Timeline.cpp
     src/AboutWindow.cpp
     src/ShortcutsDialog.cpp
     src/Registry.cpp

@@ -47,6 +47,12 @@ void Shell::bind_acts() {  // acts: win.proc-*, win.undo / redo
     add("mark",           [this] { on_mark(); });
     add("open-recordings",[this] { on_open_recordings(); });
     add("copy-trail-query", [this] { on_copy_trail_query(); });
+    add("trail-mark-add",    [this] { on_trail_mark_add(); });      // s010, Shell_record.cpp
+    add("trail-mark-rename", [this] { on_trail_mark_rename(); });
+    add("trail-mark-delete", [this] { on_trail_mark_delete(); });
+    m_app.set_trail(&m_trails_page.trail());
+    m_trails_page.set_window(this);
+    m_trails_page.set_live_path([this] { return m_recorder.recording() ? m_recorder.path() : std::string(); });
     sync_acts();
 }
 
@@ -73,10 +79,20 @@ void Shell::sync_acts() {  // acts: grey what can't apply now
     en("redo",           m_journal.can_redo());
     en("mark",           m_recorder.recording());
     en("copy-trail-query", !m_last_trail.empty());
+    en("trail-mark-add",    m_trails_page.trail().is_open());
+    en("trail-mark-rename", m_trails_page.trail().is_open() && m_trails_page.selected_mark() != 0);
+    en("trail-mark-delete", m_trails_page.trail().is_open() && m_trails_page.selected_mark() != 0);
 }
 
 void Shell::report(const std::string& done, const std::string& err) {  // acts: status + log
     auto lg = log::get(log::Area::Shell);
+    // The status line of the tab in view (s010: Trails has its own).
+    if (m_stack.get_visible_child_name() == "trails") {
+        m_trails_page.set_status(err.empty() ? done : err, !err.empty());
+        if (lg) { if (err.empty()) lg->info("act: {}", done); else lg->warn("act: {} -- {}", done, err); }
+        sync_acts();
+        return;
+    }
     if (err.empty()) {
         m_proc_page.set_status(done, false);
         if (lg) lg->info("act: {}", done);
@@ -140,21 +156,25 @@ void Shell::on_proc_end(bool kill) {  // acts: confirm, then TERM / KILL
 void Shell::on_undo() {  // acts: Ctrl+Z
     if (elevate::busy()) return;
     m_knobs.clear_error();
+    m_app.clear_error();
     const auto r = m_journal.undo();
     if (!r.done) return;
     for (const auto& ref : r.selection)
         if (ref.kind == core::Ref::Kind::Proc) { m_proc_page.select_pid(ref.proc.pid); break; }
-    report("Undid " + r.label, m_knobs.last_error());
+    m_trails_page.refresh_marks();
+    report("Undid " + r.label, !m_app.last_error().empty() ? m_app.last_error() : m_knobs.last_error());
 }
 
 void Shell::on_redo() {  // acts: Ctrl+Shift+Z
     if (elevate::busy()) return;
     m_knobs.clear_error();
+    m_app.clear_error();
     const auto r = m_journal.redo();
     if (!r.done) return;
     for (const auto& ref : r.selection)
         if (ref.kind == core::Ref::Kind::Proc) { m_proc_page.select_pid(ref.proc.pid); break; }
-    report("Redid " + r.label, m_knobs.last_error());
+    m_trails_page.refresh_marks();
+    report("Redid " + r.label, !m_app.last_error().empty() ? m_app.last_error() : m_knobs.last_error());
 }
 
 }  // namespace trails

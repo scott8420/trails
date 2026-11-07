@@ -4,6 +4,7 @@
 #include <gtkmm/box.h>
 #include <gtkmm/button.h>
 #include <gtkmm/checkbutton.h>
+#include <gtkmm/entry.h>
 #include <gtkmm/eventcontrollerkey.h>
 #include <gtkmm/flowbox.h>
 #include <gtkmm/headerbar.h>
@@ -156,6 +157,25 @@ void ask_cpus(Gtk::Window& parent, const std::string& name, int pid, const std::
         if (!cpus.empty()) done(cpus);
     });
     m.win->present();
+}
+
+void ask_text(Gtk::Window& parent, const std::string& title, const std::string& prompt,
+              const std::string& initial, std::function<void(std::string)> done) {
+    auto m = make_modal(parent, title, "OK");
+    auto* lbl = Gtk::make_managed<Gtk::Label>(prompt);
+    lbl->set_xalign(0.0f);
+    auto* entry = Gtk::make_managed<Gtk::Entry>();
+    entry->set_text(initial);
+    entry->set_width_chars(32);
+    m.body->append(*lbl);
+    m.body->append(*entry);
+    m.ok->signal_clicked().connect([w = m.win, entry, done] {
+        const std::string t = entry->get_text();
+        w->close();
+        done(t);
+    });
+    m.win->present();
+    entry->grab_focus();
 }
 
 void confirm_end(Gtk::Window& parent, const std::string& name, int pid, bool kill,

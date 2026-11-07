@@ -23,4 +23,8 @@ void ask_cpus(Gtk::Window& parent, const std::string& name, int pid, const std::
 void confirm_end(Gtk::Window& parent, const std::string& name, int pid, bool kill,
                  std::function<void()> yes);
 
+// One line of text (s010: rename a mark). `done` gets the text on OK.
+void ask_text(Gtk::Window& parent, const std::string& title, const std::string& prompt,
+              const std::string& initial, std::function<void(std::string)> done);
+
 }  // namespace trails::dialogs
