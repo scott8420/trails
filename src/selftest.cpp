@@ -18,12 +18,17 @@
 #include "core/TextMap.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
 
 namespace core = trails::core;
+
+// s002: the sampler core lives in its own TU (selftest_sampler.cpp).
+void run_sampler_tests(
+    const std::function<void(const std::string&, bool, const std::string&)>& check);
 
 namespace {
 int g_pass = 0, g_fail = 0;
@@ -76,7 +81,7 @@ void roundtrip(const std::vector<core::FlatLine>& flat,
 }  // namespace
 
 int main() {
-    std::cout << "trails_selftest -- recents pump + textmap mapping\n";
+    std::cout << "trails_selftest -- cairn paradigms + sampler core\n";
 
     // ── Undo -- the one door, two pictures, gestures, merging (s046) ──────────
     {
@@ -398,6 +403,9 @@ int main() {
     }
 
 
+
+    // -- Sampler core (s002): readers, rings, snapshots, the thread ------------
+    run_sampler_tests([](const std::string& n, bool ok, const std::string& d) { check(n, ok, d); });
 
     std::cout << "-----------------------------------------------\n";
     std::cout << g_pass << " pass / " << g_fail << " fail\n";

@@ -39,6 +39,16 @@ add_library(trails_core STATIC
     # template over the app's store); Stones is the demo model + its verbs +
     # the verb table the selftest gate walks. docs/undo.md.
     src/core/Stones.cpp
+    # s002 -- the sampler core. probe/ readers each parse one /proc or /sys
+    # source under a ROOT path (fixture trees in the selftest); Sampler owns
+    # the thread + rings and publishes an immutable Snapshot the UI reads
+    # without locking. include/core/series/Ring.hpp is header-only.
+    src/core/probe/Stat.cpp
+    src/core/probe/Meminfo.cpp
+    src/core/probe/NetDev.cpp
+    src/core/probe/DiskStats.cpp
+    src/core/probe/ProcTable.cpp
+    src/core/Sampler.cpp
 )
 target_include_directories(trails_core PUBLIC include)
 # Vendored nlohmann/json (header-only, MIT), PRIVATE -- an implementation detail
@@ -46,7 +56,9 @@ target_include_directories(trails_core PUBLIC include)
 target_include_directories(trails_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
 # ── Headless selftest -- exercises the core with no display ────────────────────
-add_executable(trails_selftest src/selftest.cpp)
+add_executable(trails_selftest src/selftest.cpp src/selftest_sampler.cpp)
+find_package(Threads REQUIRED)
+target_link_libraries(trails_core PUBLIC Threads::Threads)
 target_link_libraries(trails_selftest PRIVATE trails_core)
 
 # ── App resources (gresource) -- the RESOURCE-PIPELINE paradigm ────────────────
