@@ -7,6 +7,7 @@
 #include "Log.hpp"
 
 #include <gtkmm/icontheme.h>
+#include <gtkmm/settings.h>
 #include <gtkmm/cssprovider.h>
 #include <gtkmm/stylecontext.h>
 #include <gdkmm/display.h>
@@ -55,7 +56,13 @@ void App::on_activate() {
     // inherits the answer to this question rather than carrying an opinion of
     // its own, and that is exactly why the bundle ships one symbolic SVG
     // instead of a light and a dark PNG.
-    appearance::follow_system();
+    // 3b (s013): Trails wears Rouster's skin, which is its own dark, always
+    // (resources/trails.css). GTK's dark variant is asked for so menus,
+    // popovers, dialogs and the file chooser match it -- Rouster's App.cpp
+    // does the same. Appearance.* (follow the desktop) stays compiled for a
+    // later "match the desktop" setting.
+    if (auto settings = Gtk::Settings::get_default())
+        settings->property_gtk_application_prefer_dark_theme() = true;
 
     // Register the compiled-in bundle and point the icon theme at its icon
     // prefix, so set_icon_name("trails-logo-symbolic") resolves out of the binary

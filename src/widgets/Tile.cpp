@@ -13,7 +13,7 @@ Tile::Tile(std::string_view name, std::string_view title, std::string_view icon,
     set_hexpand(true);
 
     m_icon.set_from_icon_name(std::string(icon));
-    m_icon.set_pixel_size(40);
+    m_icon.set_pixel_size(44);   // 3b: a Rouster hero orb (full colour)
     m_icon.add_css_class("tile-icon");
     m_title.set_text(std::string(title));
     m_title.add_css_class("tile-title");

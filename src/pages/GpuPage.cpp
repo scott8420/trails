@@ -32,8 +32,8 @@ GpuPage::GpuPage() : m_graph("gpu.graph") {
     m_page.add_css_class("tab-gpu");
 
     m_panel.add_css_class("panel");
-    m_icon.set_from_icon_name("trails-tab-gpu-symbolic");
-    m_icon.set_pixel_size(48);
+    m_icon.set_from_icon_name("trails-hero-gpu");
+    m_icon.set_pixel_size(56);
     m_icon.add_css_class("tile-icon");
     m_title.set_text("GPU");
     m_title.add_css_class("panel-title");

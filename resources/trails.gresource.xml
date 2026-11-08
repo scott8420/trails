@@ -24,6 +24,18 @@
     <file preprocess="xml-stripblanks" alias="trails-tab-sensors-symbolic.svg">icons/scalable/apps/trails-tab-sensors-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="trails-tab-services-symbolic.svg">icons/scalable/apps/trails-tab-services-symbolic.svg</file>
     <file preprocess="xml-stripblanks" alias="trails-tab-trails-symbolic.svg">icons/scalable/apps/trails-tab-trails-symbolic.svg</file>
+    <!-- 3b (s013): Rouster-style hero orbs, full colour; scripts/make_hero_icons.py -->
+    <file preprocess="xml-stripblanks" alias="trails-hero-overview.svg">icons/scalable/apps/trails-hero-overview.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-hero-cpu.svg">icons/scalable/apps/trails-hero-cpu.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-hero-memory.svg">icons/scalable/apps/trails-hero-memory.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-hero-processes.svg">icons/scalable/apps/trails-hero-processes.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-hero-disks.svg">icons/scalable/apps/trails-hero-disks.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-hero-network.svg">icons/scalable/apps/trails-hero-network.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-hero-gpu.svg">icons/scalable/apps/trails-hero-gpu.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-hero-sensors.svg">icons/scalable/apps/trails-hero-sensors.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-hero-services.svg">icons/scalable/apps/trails-hero-services.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-hero-trails.svg">icons/scalable/apps/trails-hero-trails.svg</file>
+    <file preprocess="xml-stripblanks" alias="trails-hero-logo.svg">icons/scalable/apps/trails-hero-logo.svg</file>
   </gresource>
   <!-- s003: the skin. Loaded by App::on_activate at APPLICATION priority. -->
   <gresource prefix="/io/github/scott8420/Trails">

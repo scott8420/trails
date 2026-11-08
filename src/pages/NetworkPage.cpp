@@ -42,7 +42,8 @@ std::vector<std::size_t> order_of(const core::Snapshot& s) {
     for (std::size_t i = 0; i < s.net.size() && i < s.links.size(); ++i) {
         const auto& l = s.links[i];
         if (s.net[i].loopback) lo.push_back(i);
-        else if (l.link.virtual_if) c.push_back(i);
+        // s014: a virtual link that is down (ifb0, an idle docker0) says nothing.
+        else if (l.link.virtual_if) { if (up(l)) c.push_back(i); }
         else if (l.link.operstate == "up") a.push_back(i);
         else b.push_back(i);
     }
@@ -60,8 +61,8 @@ NetworkPage::NetworkPage() : m_graph("network.graph") {
     m_page.add_css_class("tab-network");
 
     m_panel.add_css_class("panel");
-    m_icon.set_from_icon_name("trails-tab-network-symbolic");
-    m_icon.set_pixel_size(48);
+    m_icon.set_from_icon_name("trails-hero-network");
+    m_icon.set_pixel_size(56);
     m_icon.add_css_class("tile-icon");
     m_title.set_text("Network");
     m_title.add_css_class("panel-title");

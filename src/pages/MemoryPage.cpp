@@ -38,8 +38,8 @@ MemoryPage::MemoryPage() : m_bar("memory.bar", 16), m_graph("memory.graph") {
 
     // Header panel.
     m_panel.add_css_class("panel");
-    m_icon.set_from_icon_name("trails-tab-memory-symbolic");
-    m_icon.set_pixel_size(48);
+    m_icon.set_from_icon_name("trails-hero-memory");
+    m_icon.set_pixel_size(56);
     m_icon.add_css_class("tile-icon");
     m_title.set_text("Memory");
     m_title.add_css_class("panel-title");

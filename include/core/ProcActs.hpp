@@ -119,6 +119,12 @@ namespace procacts {
 std::string cpus_to_text(const std::vector<int>& cpus);
 bool        cpus_from_text(const std::string& text, std::vector<int>& out);
 
+// s014: a process your desktop session stands on (gnome-shell, Xwayland,
+// Xorg, mutter, gdm*, gnome-session*, systemd*, dbus*). Stopping one freezes
+// the desktop -- Trails too, if it runs there -- so the UI asks first, and
+// warns before terminate / kill. `comm` is the kernel's 15-char name.
+bool session_critical(const std::string& comm);
+
 // Start time of a live pid ("" root = "/"); false if gone.
 bool read_start(const std::string& root, int pid, std::uint64_t& start);
 

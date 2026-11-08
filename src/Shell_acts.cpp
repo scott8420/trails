@@ -147,6 +147,17 @@ void Shell::on_proc_stop(bool stop) {  // acts: Stop / Continue
     const auto p = m_proc_page.picked();
     if (!p) return;
     const core::ProcKey key{p->pid, p->start};
+    // s014: Stop on the desktop's own processes asks first.
+    if (stop && core::procacts::session_critical(p->name)) {
+        dialogs::confirm(*this, "Stop " + q(p->name) + "?",
+                         p->name + " is part of your desktop session. Stopped, the desktop freezes -- Trails "
+                         "too, if it runs there -- and Continue or Ctrl+Z may be out of reach. To recover, "
+                         "switch to a text console (Ctrl+Alt+F3) and run: kill -CONT " + std::to_string(p->pid),
+                         "Stop anyway", [this, key, name = p->name] {
+                             report("Stopped " + q(name), core::procacts::stop(m_journal, m_app, key, name));
+                         });
+        return;
+    }
     const std::string e = stop ? core::procacts::stop(m_journal, m_app, key, p->name)
                                : core::procacts::resume(m_journal, m_app, key, p->name);
     report((stop ? "Stopped " : "Continued ") + q(p->name), e);

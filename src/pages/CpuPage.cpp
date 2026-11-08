@@ -53,8 +53,8 @@ CpuPage::CpuPage() : m_graph("cpu.graph") {
     m_page.add_css_class("tab-cpu");
 
     m_panel.add_css_class("panel");
-    m_icon.set_from_icon_name("trails-tab-cpu-symbolic");
-    m_icon.set_pixel_size(48);
+    m_icon.set_from_icon_name("trails-hero-cpu");
+    m_icon.set_pixel_size(56);
     m_icon.add_css_class("tile-icon");
     m_title.set_text("CPU");
     m_title.add_css_class("panel-title");

@@ -26,6 +26,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,6 +96,7 @@ private:
     void add_column(const char* title, Fmt fmt, Cmp cmp, float xalign, bool expand,
                     const char* id, bool tree_column = false);
     void rebuild_tree();        // mode / query changed: new TreeListModel over the right store
+    void paint_count();         // s014: "12 match · 213 processes · 98 kernel threads"
     void refilter();
     void refresh_cells();
     void restore_selection();
@@ -134,6 +136,8 @@ private:
     int  m_selected_pid = -1;
     bool m_restoring = false;
     bool m_built_tree_mode = true;
+    std::unordered_set<int> m_collapsed;   // s014: rows the user folded, kept across Tree / Flat
+    int  m_shown = 0, m_kernel = 0;        // s014: the last tick's counts
     std::string m_built_query;
 
     // Detail.

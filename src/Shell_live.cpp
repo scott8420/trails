@@ -127,6 +127,7 @@ void Shell::paint_overview(const core::Snapshot& s) {  // live: tiles from a sna
     std::string pd = std::to_string(threads) + " threads";
     if (r && top) pd += " · busiest " + top->name + " " + fmt::pct(top->cpu_pct);
     m_tile_procs.set_detail(pd);
+    m_tile_procs.graph().set_series(hist(s, "procs.count"), {}, cap(s, "procs.count"));
 }
 
 }  // namespace trails

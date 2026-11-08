@@ -183,6 +183,14 @@ bool cpus_from_text(const std::string& text, std::vector<int>& out) {
     return !out.empty();
 }
 
+bool session_critical(const std::string& comm) {
+    for (const char* exact : {"gnome-shell", "Xwayland", "Xorg", "mutter"})
+        if (comm == exact) return true;
+    for (const char* prefix : {"gdm", "gnome-session", "systemd", "dbus"})
+        if (comm.rfind(prefix, 0) == 0) return true;
+    return false;
+}
+
 bool read_start(const std::string& root, int pid, std::uint64_t& start) {
     probe::ProcStat ps;
     if (!probe::read_proc(root.empty() ? "/" : root, pid, 4096, ps)) return false;

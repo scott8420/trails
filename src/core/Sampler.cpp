@@ -277,6 +277,7 @@ std::shared_ptr<const Snapshot> Sampler::tick() {
             push("net." + n.name + ".rx", n.rx_bps);
             push("net." + n.name + ".tx", n.tx_bps);
         }
+        push("procs.count", double(s.procs.size()));   // s014: the Overview tile's graph
         if (s.temp_max > 0) push("temp.max", s.temp_max);
         if (s.gpu_busy >= 0) push("gpu.busy", s.gpu_busy);
         for (const auto& p : s.power)

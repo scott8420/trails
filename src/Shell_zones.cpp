@@ -130,7 +130,7 @@ Gtk::Widget& Shell::build_overview() {  // zone: the Overview tiles
     m_tile_mem.graph().set_scale(widgets::Graph::Scale::Percent);
     m_tile_disk.graph().set_scale(widgets::Graph::Scale::Auto, 1024.0 * 1024.0);   // 1 MiB/s floor
     m_tile_net.graph().set_scale(widgets::Graph::Scale::Auto, 64.0 * 1024.0);      // 64 KiB/s floor
-    m_tile_procs.set_has_graph(false);
+    m_tile_procs.graph().set_scale(widgets::Graph::Scale::Auto, 10.0);   // s014: process count
 
     auto page = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, 0);
     page->add_css_class("page");

@@ -2,6 +2,7 @@
 #include "Registry.hpp"
 #include "core/Format.hpp"
 #include "core/Recorder.hpp"
+#include "widgets/Searchable.hpp"
 
 #include <gdkmm/clipboard.h>
 #include <giomm/file.h>
@@ -84,8 +85,8 @@ TrailsPage::~TrailsPage() { registry::remove(this); }
 
 void TrailsPage::build_header() {
     m_panel.add_css_class("panel");
-    m_icon.set_from_icon_name("trails-tab-trails-symbolic");
-    m_icon.set_pixel_size(48);
+    m_icon.set_from_icon_name("trails-hero-trails");
+    m_icon.set_pixel_size(56);
     m_icon.add_css_class("tile-icon");
     m_title.set_text("Trails");
     m_title.add_css_class("panel-title");
@@ -137,6 +138,8 @@ void TrailsPage::build_header() {
     m_b_dd.set_model(m_b_model);
     m_a_dd.set_hexpand(true);
     m_b_dd.set_hexpand(true);
+    widgets::searchable(m_a_dd);   // s014: type to find one of ~70 metrics
+    widgets::searchable(m_b_dd);
     for (auto* dd : {&m_a_dd, &m_b_dd})
         dd->property_selected().signal_changed().connect([this] { if (!m_syncing) { requery(); paint_cursor(); } });
     auto* show = Gtk::make_managed<Gtk::Label>("Show");

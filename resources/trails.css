@@ -1,142 +1,206 @@
-/* Trails skin -- PLACEHOLDER (s003). Rouster's skin replaces this file when
-   its resources arrive; the class names below are the contract the code
-   relies on, so a new skin restyles them without touching C++.
+/* Trails skin -- ROUSTER's look (3b, s013). Its own dark, always (App.cpp
+   asks GTK for its dark variant so menus, popovers and dialogs match): a deep
+   gradient per tab on the window itself, a frosted rail, translucent cards,
+   hero orbs (trails-hero-<tab>.svg, made by scripts/make_hero_icons.py).
+   Taken from rouster/resources/rouster.css (Nov 7 2026); plain GTK4 CSS --
+   no libadwaita, no var(), no double hyphen inside a comment.
 
-   Contract:
-     .trails                  the window
-     .rail / .rail row        the tab rail; each row also has its tab class
-     .rail-icon .rail-label   inside a rail row
-     .page                    every stack page (padding)
-     .tile                    an Overview tile (a button); also its tab class
-     .tile-icon .tile-title .tile-value .tile-detail
-     .graph                   a Graph -- it DRAWS in its CSS `color`
-     .placeholder .placeholder-icon .placeholder-title
-     .tab-<id>                one per tab (core/Tabs.cpp): sets the tab colour */
+   Contract (the class names the code relies on; restyle them, keep them):
+     window.trails               the window; it also carries .page-<tab>
+     .rail-scroll .rail          the tab rail; rows carry .tab-<id>
+     .rail-icon .rail-label      inside a rail row
+     .page                       every stack page (padding)
+     .tile .tile-icon .tile-title .tile-value .tile-detail   Overview tiles
+     .panel .panel-flat          cards (panel-flat: lists)
+     .panel-title .section-title .kv-value .core ...
+     .graph                      a Graph / Timeline / Bar -- DRAWS in its CSS color
+     .tab-<id>                   one per tab (core/Tabs.cpp): the tab colour
+     .record-button .recording   the header's record button
+     .error                      status lines that went wrong                 */
 
-@define-color c_overview #7c6cf2;
-@define-color c_cpu      #ff6b4a;
-@define-color c_memory   #2fb7a6;
-@define-color c_processes #f4a51c;
-@define-color c_disks    #4a90f2;
-@define-color c_network  #33b864;
-@define-color c_gpu      #d64fd0;
-@define-color c_sensors  #f25c7a;
-@define-color c_services #8a9bb0;
-@define-color c_trails   #b8823a;
+/* Tab colours: bright on the dark ground (Rouster's light stops, taken to
+   80% saturation in s015 -- Scott: "the colors need to be desaturated some;
+   it can be hard to see some of the data"). The window gradients below are
+   at 40% of Rouster's saturation and the glow at 40% of its strength, so the
+   data, drawn in the tab colour, no longer sits on a field of its own hue. */
+@define-color c_overview #d2c8f7;
+@define-color c_cpu #f1bf8c;
+@define-color c_memory #74decd;
+@define-color c_processes #eccd67;
+@define-color c_disks #94d3f1;
+@define-color c_network #9ae7b5;
+@define-color c_gpu #edbef6;
+@define-color c_sensors #f6b8c0;
+@define-color c_services #d5dce4;
+@define-color c_trails #b9c3f5;
 
-/* ── rail ───────────────────────────────────────────────────────────────── */
-.rail-scroll { border-right: 1px solid alpha(currentColor, 0.08); }
+/* ── the window ─────────────────────────────────────────────────────────── */
+window.trails { background-color: #1b1530; color: #f4f1fb; }
+window.trails headerbar {
+  background: transparent; box-shadow: none; border: none;
+  min-height: 44px; color: #f4f1fb;
+}
+window.trails headerbar button, window.trails headerbar menubutton > button {
+  color: rgba(244,241,251,0.85); background: transparent; box-shadow: none; border: none;
+}
+window.trails headerbar button:hover { background-color: rgba(255,255,255,0.10); }
+window.trails headerbar menubutton > button:checked { background-color: rgba(255,255,255,0.14); }
+window.trails .title { font-weight: 600; color: rgba(244,241,251,0.75); }
+
+/* Per tab tint: Shell::on_tab sets .page-<id> on the window. */
+window.trails.page-overview {
+  background-image: radial-gradient(circle at 75% 15%, rgba(181,167,222,0.18), transparent 55%),
+                    linear-gradient(160deg, #2d273c 0%, #3f3655 55%, #1f1b29 100%);
+}
+window.trails.page-cpu {
+  background-image: radial-gradient(circle at 75% 15%, rgba(203,151,108,0.20), transparent 55%),
+                    linear-gradient(160deg, #34271f 0%, #4a3429 55%, #211814 100%);
+}
+window.trails.page-memory {
+  background-image: radial-gradient(circle at 75% 15%, rgba(87,170,160,0.18), transparent 55%),
+                    linear-gradient(160deg, #1f2e34 0%, #263c42 55%, #162025 100%);
+}
+window.trails.page-processes {
+  background-image: radial-gradient(circle at 75% 15%, rgba(197,167,90,0.18), transparent 55%),
+                    linear-gradient(160deg, #342c1f 0%, #4a3e29 55%, #211c14 100%);
+}
+window.trails.page-disks {
+  background-image: radial-gradient(circle at 75% 15%, rgba(104,170,200,0.18), transparent 55%),
+                    linear-gradient(160deg, #1c2933 0%, #273d4b 55%, #151e26 100%);
+}
+window.trails.page-network {
+  background-image: radial-gradient(circle at 75% 15%, rgba(111,185,138,0.18), transparent 55%),
+                    linear-gradient(160deg, #1a2b26 0%, #243b2d 55%, #131e1a 100%);
+}
+window.trails.page-gpu {
+  background-image: radial-gradient(circle at 75% 15%, rgba(193,115,160,0.22), transparent 55%),
+                    linear-gradient(160deg, #3c314f 0%, #48314d 55%, #282033 100%);
+}
+window.trails.page-sensors {
+  background-image: radial-gradient(circle at 75% 15%, rgba(217,147,157,0.18), transparent 55%),
+                    linear-gradient(160deg, #352127 0%, #4c2e37 55%, #211519 100%);
+}
+window.trails.page-services {
+  background-image: radial-gradient(circle at 75% 15%, rgba(157,164,175,0.16), transparent 55%),
+                    linear-gradient(160deg, #24282e 0%, #383d45 55%, #15181f 100%);
+}
+window.trails.page-trails {
+  background-image: radial-gradient(circle at 75% 15%, rgba(138,158,216,0.18), transparent 55%),
+                    linear-gradient(160deg, #2c2f42 0%, #3d3f5a 55%, #1f212f 100%);
+}
+
+/* ── the rail: frosted, a soft pill for the selection ───────────────────── */
+.rail-scroll { background-color: rgba(0,0,0,0.22); border-right: 1px solid rgba(255,255,255,0.06); }
 .rail { background: transparent; padding: 10px 0; }
-.rail row { padding: 9px 14px; margin: 2px 10px; border-radius: 14px; }
+.rail row {
+  border-radius: 10px; margin: 2px 10px; padding: 8px 12px;
+  color: rgba(244,241,251,0.80); background: transparent;
+}
+.rail row:hover { background-color: rgba(255,255,255,0.07); }
+.rail row:selected { background-color: rgba(255,255,255,0.16); color: #ffffff; }
+.rail row:focus-visible { outline: 2px solid rgba(255,255,255,0.4); outline-offset: -2px; }
 .rail-label { font-weight: 600; font-size: 1.05em; }
 
-/* ── pages + tiles ──────────────────────────────────────────────────────── */
-.page { padding: 24px; }
-.tile {
-    padding: 16px 18px 12px 18px;
-    border-radius: 20px;
-    background-image: none;
-    background-color: alpha(currentColor, 0.045);
-    border: 1px solid alpha(currentColor, 0.09);
-    box-shadow: none;
-}
-.tile:hover { background-color: alpha(currentColor, 0.08); }
-.tile-title  { font-size: 1.2em; font-weight: 700; }
-.tile-value  { font-size: 2.3em; font-weight: 800; }
-.tile-detail { opacity: 0.72; }
-.graph { margin-top: 6px; }
+/* ── pages, cards, tiles ────────────────────────────────────────────────── */
+.page { padding: 24px; background: transparent; }
+scrolledwindow, viewport { background: transparent; }
 
+.panel, .tile, .core {
+  background-color: rgba(12,12,18,0.30);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 16px;
+  box-shadow: none;
+  background-image: none;
+  color: #f4f1fb;
+}
+.panel { padding: 16px 18px 14px 18px; }
+.panel-flat { background-color: rgba(12,12,18,0.30); border-radius: 14px; }
+.tile { padding: 16px 18px 12px 18px; }
+.tile:hover { background-color: rgba(255,255,255,0.06); }
+.core { padding: 10px 12px 8px 12px; border-radius: 14px; }
+
+.panel-title   { font-size: 1.6em; font-weight: 800; color: #ffffff; }
+.section-title { font-size: 1.12em; font-weight: 700; color: #ffffff; margin-top: 2px; }
+.tile-title    { font-size: 1.15em; font-weight: 700; color: #ffffff; }
+.tile-value    { font-size: 2.3em; font-weight: 800; }
+.tile-detail   { color: rgba(244,241,251,0.70); }
+.kv-value      { font-weight: 700; font-feature-settings: "tnum"; color: #ffffff; }
+.core-name     { font-weight: 700; }
+.core-pct      { font-weight: 800; }
+.core-mhz      { font-size: 0.9em; color: rgba(244,241,251,0.60); }
+.dim-label, label.dim-label { color: rgba(244,241,251,0.62); opacity: 1; }
+.numeric       { font-feature-settings: "tnum"; }
+.graph         { margin-top: 6px; }
 .placeholder-title { font-size: 2.2em; font-weight: 800; }
+.error         { color: #f87171; }
 
-/* ── tab colours ────────────────────────────────────────────────────────── */
-.tab-overview .rail-icon,
-.tab-overview .tile-icon,
-.tab-overview .tile-value,
-.tab-overview .graph,
-.tab-overview .placeholder-icon { color: @c_overview; }
-.tab-cpu .rail-icon,
-.tab-cpu .tile-icon,
-.tab-cpu .tile-value,
-.tab-cpu .graph,
-.tab-cpu .placeholder-icon { color: @c_cpu; }
-.tab-memory .rail-icon,
-.tab-memory .tile-icon,
-.tab-memory .tile-value,
-.tab-memory .graph,
-.tab-memory .placeholder-icon { color: @c_memory; }
-.tab-processes .rail-icon,
-.tab-processes .tile-icon,
-.tab-processes .tile-value,
-.tab-processes .graph,
-.tab-processes .placeholder-icon { color: @c_processes; }
-.tab-disks .rail-icon,
-.tab-disks .tile-icon,
-.tab-disks .tile-value,
-.tab-disks .graph,
-.tab-disks .placeholder-icon { color: @c_disks; }
-.tab-network .rail-icon,
-.tab-network .tile-icon,
-.tab-network .tile-value,
-.tab-network .graph,
-.tab-network .placeholder-icon { color: @c_network; }
-.tab-gpu .rail-icon,
-.tab-gpu .tile-icon,
-.tab-gpu .tile-value,
-.tab-gpu .graph,
-.tab-gpu .placeholder-icon { color: @c_gpu; }
-.tab-sensors .rail-icon,
-.tab-sensors .tile-icon,
-.tab-sensors .tile-value,
-.tab-sensors .graph,
-.tab-sensors .placeholder-icon { color: @c_sensors; }
-.tab-services .rail-icon,
-.tab-services .tile-icon,
-.tab-services .tile-value,
-.tab-services .graph,
-.tab-services .placeholder-icon { color: @c_services; }
-.tab-trails .rail-icon,
-.tab-trails .tile-icon,
-.tab-trails .tile-value,
-.tab-trails .graph,
-.tab-trails .placeholder-icon { color: @c_trails; }
-
-.rail row.tab-overview:selected  { background-color: alpha(@c_overview, 0.20); }
-.rail row.tab-cpu:selected       { background-color: alpha(@c_cpu, 0.20); }
-.rail row.tab-memory:selected    { background-color: alpha(@c_memory, 0.20); }
-.rail row.tab-processes:selected { background-color: alpha(@c_processes, 0.20); }
-.rail row.tab-disks:selected     { background-color: alpha(@c_disks, 0.20); }
-.rail row.tab-network:selected   { background-color: alpha(@c_network, 0.20); }
-.rail row.tab-gpu:selected       { background-color: alpha(@c_gpu, 0.20); }
-.rail row.tab-sensors:selected   { background-color: alpha(@c_sensors, 0.20); }
-.rail row.tab-services:selected  { background-color: alpha(@c_services, 0.20); }
-.rail row.tab-trails:selected    { background-color: alpha(@c_trails, 0.20); }
-
-/* The theme paints a selected row's text in the selection fg (white); here
-   the selection is a pale tab tint, so keep the normal text colour. */
-.rail row:selected { color: inherit; }
-
-/* ── s004: panels, core cards, sections ────────────────────────────────── */
-.panel {
-    padding: 18px 20px 14px 20px;
-    border-radius: 20px;
-    background-color: alpha(currentColor, 0.045);
-    border: 1px solid alpha(currentColor, 0.09);
-}
-.panel-title   { font-size: 1.5em; font-weight: 800; }
-.section-title { font-size: 1.15em; font-weight: 700; margin-top: 4px; }
-.core {
-    padding: 10px 12px 8px 12px;
-    border-radius: 14px;
-    background-color: alpha(currentColor, 0.045);
-    border: 1px solid alpha(currentColor, 0.08);
-}
-.core-name { font-weight: 700; }
-.core-pct  { font-weight: 800; }
-.core-mhz  { font-size: 0.9em; opacity: 0.7; }
-.kv-value  { font-weight: 700; font-feature-settings: "tnum"; }
+/* ── tab colours: graphs, big numbers, rail glyphs ──────────────────────── */
+.tab-overview .rail-icon,  .tab-overview .tile-value,  .tab-overview .graph,  .tab-overview .placeholder-icon  { color: @c_overview; }
+.tab-cpu .rail-icon,       .tab-cpu .tile-value,       .tab-cpu .graph,       .tab-cpu .placeholder-icon       { color: @c_cpu; }
+.tab-memory .rail-icon,    .tab-memory .tile-value,    .tab-memory .graph,    .tab-memory .placeholder-icon    { color: @c_memory; }
+.tab-processes .rail-icon, .tab-processes .tile-value, .tab-processes .graph, .tab-processes .placeholder-icon { color: @c_processes; }
+.tab-disks .rail-icon,     .tab-disks .tile-value,     .tab-disks .graph,     .tab-disks .placeholder-icon     { color: @c_disks; }
+.tab-network .rail-icon,   .tab-network .tile-value,   .tab-network .graph,   .tab-network .placeholder-icon   { color: @c_network; }
+.tab-gpu .rail-icon,       .tab-gpu .tile-value,       .tab-gpu .graph,       .tab-gpu .placeholder-icon       { color: @c_gpu; }
+.tab-sensors .rail-icon,   .tab-sensors .tile-value,   .tab-sensors .graph,   .tab-sensors .placeholder-icon   { color: @c_sensors; }
+.tab-services .rail-icon,  .tab-services .tile-value,  .tab-services .graph,  .tab-services .placeholder-icon  { color: @c_services; }
+.tab-trails .rail-icon,    .tab-trails .tile-value,    .tab-trails .graph,    .tab-trails .placeholder-icon    { color: @c_trails; }
 .tab-cpu .core-pct { color: @c_cpu; }
 
-/* s009 -- the record button: red dot at rest, solid red while recording. */
-.record-button { font-weight: 700; }
-.record-button:not(.recording) { color: #e01b24; }
-.record-button.recording { background: #e01b24; color: white; }
+/* ── lists and tables on the dark ground ────────────────────────────────── */
+columnview, columnview > listview, columnview > listview > row,
+listview, listbox, .data-table { background: transparent; color: #f4f1fb; }
+columnview > header > button {
+  background: transparent; color: rgba(244,241,251,0.60); border: none; box-shadow: none;
+  font-weight: 600;
+}
+columnview > listview > row:hover { background-color: rgba(255,255,255,0.06); }
+columnview > listview > row:selected { background-color: rgba(255,255,255,0.18); color: #ffffff; }
+listbox.boxed-list {
+  background-color: rgba(0,0,0,0.18); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06);
+}
+listbox.boxed-list > row { background: transparent; color: #f4f1fb; border-radius: 10px; }
+listbox.boxed-list > row:hover { background-color: rgba(255,255,255,0.06); }
+listbox.boxed-list > row:selected { background-color: rgba(255,255,255,0.18); color: #ffffff; }
+paned > separator { background-color: rgba(255,255,255,0.06); min-height: 6px; }
+
+/* ── controls: Rouster's ghost buttons, dark entries ────────────────────── */
+/* Only LABELLED buttons (.text-button) become ghost pills: Overview tiles and
+   ColumnView header titles are buttons too, and a pill's padding there made
+   the headers overlap (3b look; found by the Ctrl+D width dump). */
+window.trails .page button.text-button {
+  border-radius: 9999px; padding: 4px 16px; border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.06); color: #ffffff; box-shadow: none;
+}
+window.trails .page button.text-button:hover { background: rgba(255,255,255,0.14); }
+window.trails .page button.text-button:disabled { opacity: 0.4; }
+window.trails .page button.text-button:checked { background: rgba(255,255,255,0.24); border-color: rgba(255,255,255,0.55); }
+window.trails .page .linked > button:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+window.trails .page .linked > button:last-child  { border-top-left-radius: 0;  border-bottom-left-radius: 0; }
+window.trails .page button.destructive-action {
+  border-radius: 9999px; padding: 4px 16px; border: none; color: #ffffff;
+  background-image: linear-gradient(160deg, #fda4af 0%, #e11d48 100%);
+  box-shadow: 0 4px 16px rgba(225,29,72,0.30);
+}
+window.trails .page button.destructive-action:disabled { opacity: 0.4; box-shadow: none; }
+window.trails entry, window.trails spinbutton, window.trails searchentry, window.trails textview, window.trails textview text {
+  background-color: rgba(0,0,0,0.25); color: #ffffff; border-radius: 8px;
+}
+window.trails dropdown > button {
+  border-radius: 8px; background: rgba(0,0,0,0.25); color: #ffffff; border: 1px solid rgba(255,255,255,0.12);
+}
+window.trails checkbutton { color: #f4f1fb; }
+
+/* ── the record button (s009): Rouster's orb red ────────────────────────── */
+window.trails headerbar button.record-button {
+  font-weight: 700; border-radius: 9999px; padding: 2px 14px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(248,113,113,0.55); color: #fca5a5;
+}
+window.trails headerbar button.record-button.recording {
+  color: #ffffff; border: none;
+  background-image: linear-gradient(160deg, #fb7185 0%, #e11d48 100%);
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.10), 0 6px 22px rgba(225,29,72,0.55);
+}
+
+/* The Trails timeline draws its line in the tab colour (via .graph). */
+.timeline { margin-top: 2px; }

@@ -131,7 +131,7 @@ struct Snapshot {
     //   mem.used mem.used_pct mem.cache_pct swap.used swap.used_pct load.1
     //   net.rx net.tx net.<if>.rx net.<if>.tx
     //   disk.read disk.write disk.<dev>.read disk.<dev>.write disk.<dev>.busy
-    //   temp.max gpu.busy battery.power hw.<hwmonN>.<key> (temp / fan / power sensors)
+    //   procs.count (s014) temp.max gpu.busy battery.power hw.<hwmonN>.<key> (temp / fan / power sensors)
     std::map<std::string, Ring<float>> series;
     // s009: the values pushed THIS tick, by metric id. A metric whose source
     // went quiet keeps its ring (it ages out) but is absent here, so the

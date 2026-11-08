@@ -92,8 +92,8 @@ ProcessesPage::~ProcessesPage() { registry::remove(this); }
 bool ProcessesPage::tree_mode() const { return m_tree_btn.get_active(); }
 
 void ProcessesPage::build_header() {
-    m_icon.set_from_icon_name("trails-tab-processes-symbolic");
-    m_icon.set_pixel_size(40);
+    m_icon.set_from_icon_name("trails-hero-processes");
+    m_icon.set_pixel_size(56);
     m_icon.add_css_class("tile-icon");
     m_title.set_text("Processes");
     m_title.add_css_class("panel-title");
@@ -287,11 +287,15 @@ void ProcessesPage::build_detail() {
     m_d_title.add_css_class("section-title");
     m_d_title.set_xalign(0.0f);
     m_d_cmd.set_xalign(0.0f);
-    m_d_cmd.set_wrap(true);
-    // CHAR, not WORD_CHAR: GTK sizes a wrapping label's MINIMUM width by its
-    // longest word, so one long path in a command line (no spaces) widened
-    // the whole page past the window (s006 Xvfb look).
-    m_d_cmd.set_wrap_mode(Pango::WrapMode::CHAR);
+    // ONE line, ellipsized in the middle; the full text is the tooltip. A
+    // WRAPPING label is height-for-width, and when the window's height was
+    // tight GTK widened the whole page to fit the wrapped command line (seen
+    // twice -- s006, and the 3b look; the Ctrl+D width dump proved it: the
+    // stack got 1766 px in a 1090 px window, only with a long command line
+    // selected). An ellipsized single line has one height at any width.
+    m_d_cmd.set_ellipsize(Pango::EllipsizeMode::MIDDLE);
+    m_d_cmd.set_width_chars(20);
+    m_d_cmd.set_hexpand(false);
     m_d_cmd.set_selectable(true);
     m_d_cmd.add_css_class("monospace");
     m_d_grid.set_column_spacing(20);
@@ -314,6 +318,15 @@ void ProcessesPage::build_detail() {
 }
 
 void ProcessesPage::rebuild_tree() {
+    // s014: remember what the user folded before this tree goes away (the
+    // new one auto-expands everything), and fold it again below.
+    if (m_built_tree_mode && m_tree)
+        for (guint i = 0; i < m_tree->get_n_items(); ++i)
+            if (auto row = m_tree->get_row(i); row && row->is_expandable())
+                if (auto* p = dynamic_cast<ProcItem*>(row->get_item().get())) {
+                    if (row->get_expanded()) m_collapsed.erase(p->row.pid);
+                    else m_collapsed.insert(p->row.pid);
+                }
     m_built_tree_mode = tree_mode() && std::string(m_search.get_text()).empty();
     m_tree = Gtk::TreeListModel::create(
         m_built_tree_mode ? m_roots : m_all,
@@ -327,12 +340,27 @@ void ProcessesPage::rebuild_tree() {
         },
         false, true);
     m_filtered->set_model(m_tree);
+    if (m_built_tree_mode && !m_collapsed.empty())
+        for (guint i = 0; i < m_tree->get_n_items(); ++i)   // folding shrinks the list; i stays put
+            if (auto row = m_tree->get_row(i))
+                if (auto* p = dynamic_cast<ProcItem*>(row->get_item().get()); p && m_collapsed.count(p->row.pid))
+                    row->set_expanded(false);
     restore_selection();
+    paint_count();
 }
 
 void ProcessesPage::refilter() {
     gtk_filter_changed(m_filter->gobj(), GTK_FILTER_CHANGE_DIFFERENT);   // protected in gtkmm
     restore_selection();
+    paint_count();
+}
+
+void ProcessesPage::paint_count() {
+    std::string t = std::to_string(m_shown) + " processes \u00b7 " + std::to_string(m_kernel) + " kernel threads";
+    // A typed filter shows matches flat, so the filtered model's size IS the match count.
+    if (!std::string(m_search.get_text()).empty() && m_filtered)
+        t = std::to_string(m_filtered->get_n_items()) + " match \u00b7 " + t;
+    set(m_count, t);
 }
 
 void ProcessesPage::refresh_cells() {
@@ -417,8 +445,9 @@ void ProcessesPage::paint(const core::Snapshot& s) {
     m_row_sorter->changed(Gtk::Sorter::Change::DIFFERENT);
     refresh_cells();
     restore_selection();
-    set(m_count, std::to_string(shown) + " processes · " + std::to_string(s.procs.size() - shown) +
-                 " kernel threads");
+    m_shown = shown;
+    m_kernel = int(s.procs.size()) - shown;
+    paint_count();
     paint_detail();
 }
 
@@ -435,6 +464,7 @@ void ProcessesPage::paint_detail() {
     const auto& r = p.row;
     set(m_d_title, r.name + "  ·  " + std::to_string(r.pid));
     set(m_d_cmd, r.cmdline.empty() ? (r.kernel_thread ? "[kernel thread]" : "[no command line]") : r.cmdline);
+    if (std::string(m_d_cmd.get_tooltip_text()) != r.cmdline) m_d_cmd.set_tooltip_text(r.cmdline);
     std::string files = "--";
     int nf = 0, ns = 0;
     if (core::probe::count_fds(m_root, r.pid, nf, ns))

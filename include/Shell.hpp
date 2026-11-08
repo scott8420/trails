@@ -154,6 +154,7 @@ private:
     widgets::ListBox        m_rail;        // one row per tab; row name = tab id
     widgets::Stack          m_stack;       // one page per tab; page name = tab id
     bool                    m_syncing = false;   // rail <-> stack echo guard
+    std::string             m_page_class;        // 3b: "page-cpu" on the window (the tab's gradient)
 
     // Overview.
     widgets::ScrolledWindow m_overview_scroll;

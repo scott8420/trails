@@ -19,11 +19,11 @@ Shell::Shell()
       m_rail("shell.rail"),
       m_stack("shell.stack"),
       m_overview_scroll("overview.scroll"),
-      m_tile_cpu("overview.cpu", "CPU", "trails-tab-cpu-symbolic", "tab-cpu"),
-      m_tile_mem("overview.memory", "Memory", "trails-tab-memory-symbolic", "tab-memory"),
-      m_tile_disk("overview.disks", "Disks", "trails-tab-disks-symbolic", "tab-disks"),
-      m_tile_net("overview.network", "Network", "trails-tab-network-symbolic", "tab-network"),
-      m_tile_procs("overview.processes", "Processes", "trails-tab-processes-symbolic",
+      m_tile_cpu("overview.cpu", "CPU", "trails-hero-cpu", "tab-cpu"),
+      m_tile_mem("overview.memory", "Memory", "trails-hero-memory", "tab-memory"),
+      m_tile_disk("overview.disks", "Disks", "trails-hero-disks", "tab-disks"),
+      m_tile_net("overview.network", "Network", "trails-hero-network", "tab-network"),
+      m_tile_procs("overview.processes", "Processes", "trails-hero-processes",
                    "tab-processes") {
     // m_cpu_page / m_mem_page default-construct (they name themselves).
     set_name("shell.window");

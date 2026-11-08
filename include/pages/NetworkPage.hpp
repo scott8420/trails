@@ -20,7 +20,8 @@
 //                  from /proc/net/wireless) or link speed; down / up graph;
 //                  totals since boot; addresses (IPv4, IPv6); MAC, MTU.
 //   Order: physical links that are up, then down ones, then virtual
-//   (docker0, veth, tun). Loopback only when there is nothing else.
+//   (docker0, veth, tun) that are UP -- a down virtual link is left out
+//   (s014). Loopback only when there is nothing else.
 // ─────────────────────────────────────────────────────────────────────────────
 namespace trails::pages {
 

@@ -1,4 +1,6 @@
 #include "ActDialogs.hpp"
+#include "core/ProcActs.hpp"
+#include "widgets/Searchable.hpp"
 
 #include <gtkmm/alertdialog.h>
 #include <gtkmm/box.h>
@@ -211,6 +213,7 @@ void ask_trigger(Gtk::Window& parent, const std::string& title, const core::Trig
     }
     auto* metric = Gtk::make_managed<Gtk::DropDown>(Gtk::StringList::create(ms));
     metric->set_selected(pick);
+    widgets::searchable(*metric);
     metric->set_hexpand(true);
     grid->attach(*metric, 1, row++, 2);
 
@@ -306,7 +309,10 @@ void confirm_end(Gtk::Window& parent, const std::string& name, int pid, bool kil
     d->set_detail("PID " + std::to_string(pid) + ". " +
                   (kill ? "It stops at once, without saving anything."
                         : "It is asked to quit, and may save its work first.") +
-                  " This cannot be undone.");
+                  " This cannot be undone." +
+                  (core::procacts::session_critical(name)
+                       ? std::string("\n\nIt is part of your desktop session: ending it may freeze the desktop or log you out.")
+                       : std::string()));
     d->set_buttons({"Cancel", kill ? "Kill" : "Terminate"});
     d->set_cancel_button(0);
     d->set_default_button(0);

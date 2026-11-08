@@ -60,8 +60,8 @@ SensorsPage::SensorsPage() : m_graph("sensors.graph") {
     m_page.add_css_class("tab-sensors");
 
     m_panel.add_css_class("panel");
-    m_icon.set_from_icon_name("trails-tab-sensors-symbolic");
-    m_icon.set_pixel_size(48);
+    m_icon.set_from_icon_name("trails-hero-sensors");
+    m_icon.set_pixel_size(56);
     m_icon.add_css_class("tile-icon");
     m_title.set_text("Sensors & Power");
     m_title.add_css_class("panel-title");

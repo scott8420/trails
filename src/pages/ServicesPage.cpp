@@ -78,8 +78,8 @@ core::UnitScope ServicesPage::scope() const {
 }
 
 void ServicesPage::build_header() {
-    m_icon.set_from_icon_name("trails-tab-services-symbolic");
-    m_icon.set_pixel_size(40);
+    m_icon.set_from_icon_name("trails-hero-services");
+    m_icon.set_pixel_size(56);
     m_icon.add_css_class("tile-icon");
     m_title.set_text("Services");
     m_title.add_css_class("panel-title");

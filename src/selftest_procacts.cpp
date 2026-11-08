@@ -93,6 +93,16 @@ void run_procacts_tests(const CheckFn& check_fn) {
         check("cpus: junk refused", !junk, "");
     }
 
+    {   // s014: the session-critical guard.
+        bool ok = true;
+        for (const char* n : {"gnome-shell", "Xwayland", "Xorg", "mutter", "gdm-wayland-ses", "gnome-session-b",
+                              "systemd", "systemd-journal", "dbus-broker", "dbus-daemon"})
+            ok = ok && pa::session_critical(n);
+        for (const char* n : {"firefox", "bash", "gnome-shell-cal", "sleep", "xdg-desktop-por", "trails"})
+            ok = ok && !pa::session_critical(n);   // gnome-shell-cal(endar-server) is not the shell
+        check("guard: the session's own processes, and not the rest", ok, "");
+    }
+
     // THE GATE: every verb in the table, from a fresh fixture.
     for (const auto& v : pa::verbs()) {
         Fix f;
