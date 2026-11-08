@@ -5,6 +5,7 @@
 #include "core/Sampler.hpp"
 #include "core/probe/Probe.hpp"
 #include "core/Wifi.hpp"
+#include "core/SysInfo.hpp"
 
 #include <unistd.h>
 
@@ -43,6 +44,28 @@ void run_storage_tests(const CheckFn& check_fn) {
     auto check = [&](const std::string& n, bool ok, const std::string& d = "") { check_fn(n, ok, d); };
     std::cout << "\n-- storage + network (s007) --\n";
 
+    {   // s015c: the About window's System tab
+        namespace c = trails::core;
+        Fx sx;
+        sx.file("usr/lib/os-release", "NAME=\"Fedora Linux\"\nPRETTY_NAME=\"Fedora Linux 44 (Workstation Edition)\"\n");
+        sx.file("proc/device-tree/model", std::string("Apple MacBook Pro (14-inch, M1 Pro, 2021)\0", 42));
+        sx.file("proc/meminfo", "MemTotal:       16777216 kB\nMemFree: 1 kB\nMemAvailable: 1 kB\n");
+        check("sysinfo: os-release from usr/lib, quotes off",
+              c::os_pretty_name(sx.str()) == "Fedora Linux 44 (Workstation Edition)", c::os_pretty_name(sx.str()));
+        const auto rows = c::system_info(sx.str(), 10);
+        std::string keys;
+        for (const auto& [k, v] : rows) keys += k + ",";
+        check("sysinfo: rows in order", keys.rfind("OS,Kernel,Hardware,CPUs,Memory,", 0) == 0, keys);
+        bool hw = false, mem = false;
+        for (const auto& [k, v] : rows) {
+            if (k == "Hardware") hw = v == "Apple MacBook Pro (14-inch, M1 Pro, 2021)";
+            if (k == "Memory") mem = v == "16.0 GiB";
+        }
+        check("sysinfo: hardware + memory", hw && mem, c::info_text(rows));
+        check("sysinfo: text lines", c::info_text({{"A", "1"}, {"B", "2"}}) == "A: 1\nB: 2\n");
+        Fx empty;
+        check("sysinfo: absent facts left out", c::os_pretty_name(empty.str()).empty());
+    }
     {   // s015: Wi-Fi facts as text
         namespace c = trails::core;
         const std::vector<unsigned char> cafe{'C', 'a', 'f', 0xC3, 0xA9};   // "Café"

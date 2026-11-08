@@ -40,5 +40,7 @@
   <!-- s003: the skin. Loaded by App::on_activate at APPLICATION priority. -->
   <gresource prefix="/io/github/scott8420/Trails">
     <file>trails.css</file>
+    <!-- s015c: the About window's License tab reads the repo's LICENSE -->
+    <file alias="LICENSE">../LICENSE</file>
   </gresource>
 </gresources>

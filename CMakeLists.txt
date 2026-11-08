@@ -62,6 +62,7 @@ add_library(trails_core STATIC
     src/core/Tabs.cpp
     src/core/Format.cpp
     src/core/Wifi.cpp           # s015: Wi-Fi facts (SSID, band, bitrate) as text
+    src/core/SysInfo.cpp        # s015c: the About window's System tab
     # s005 -- the Processes tab's GTK-free half: tree index, filter, names.
     src/core/ProcView.cpp
     # s006 -- process actions: the knob store the journal writes through, the
@@ -123,7 +124,7 @@ add_custom_command(
             --c-name trails_resources
             trails.gresource.xml
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/resources"
-    DEPENDS "${TRAILS_GRESOURCE_XML}" ${TRAILS_RESOURCE_FILES}
+    DEPENDS "${TRAILS_GRESOURCE_XML}" ${TRAILS_RESOURCE_FILES} "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
     COMMENT "Compiling gresource bundle (trails-resources.c)"
     VERBATIM)
 
@@ -174,3 +175,4 @@ target_include_directories(trails PRIVATE include ${GTKMM_INCLUDE_DIRS})
 target_link_libraries(trails     PRIVATE ${GTKMM_LIBRARIES} trails_core spdlog::spdlog)
 target_link_directories(trails   PRIVATE ${GTKMM_LIBRARY_DIRS})
 target_compile_options(trails    PRIVATE ${GTKMM_CFLAGS_OTHER})
+target_compile_definitions(trails PRIVATE TRAILS_VERSION="${PROJECT_VERSION}")   # s015c: About

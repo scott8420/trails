@@ -21,9 +21,10 @@
 // bundle (the RESOURCE-PIPELINE paradigm -- App::on_activate registers it), so
 // the window also exercises resource resolution + theme recolour.
 //
-// It is deliberately minimal: this is a paradigm seed, not a product About box,
-// so there's no branded chrome (credits, licence, links) -- just enough to prove
-// the lifetime and the resource icon. See docs/resources-and-dialog-lifetime.md.
+// s015c: now a product About box, in the window's skin, with four tabs
+// (a StackSwitcher in the header): About (logo, version, links), Credits,
+// License (the repo's LICENSE, bundled in the gresource), and System (OS,
+// kernel, hardware, GTK -- what a bug report wants, with a Copy button).
 // ─────────────────────────────────────────────────────────────────────────────
 namespace trails {
 

@@ -45,6 +45,11 @@ window.trails headerbar button, window.trails headerbar menubutton > button {
 }
 window.trails headerbar button:hover { background-color: rgba(255,255,255,0.10); }
 window.trails headerbar menubutton > button:checked { background-color: rgba(255,255,255,0.14); }
+/* s015c: the About window's tabs (a StackSwitcher in the header) */
+window.trails headerbar stackswitcher button { padding: 4px 14px; border-radius: 999px; }
+window.trails headerbar stackswitcher button:checked {
+  background-color: rgba(255,255,255,0.16); color: #ffffff; font-weight: 600;
+}
 window.trails .title { font-weight: 600; color: rgba(244,241,251,0.75); }
 
 /* Per tab tint: Shell::on_tab sets .page-<id> on the window. */
