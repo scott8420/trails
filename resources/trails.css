@@ -133,6 +133,7 @@ scrolledwindow, viewport { background: transparent; }
 .graph         { margin-top: 6px; }
 .placeholder-title { font-size: 2.2em; font-weight: 800; }
 .error         { color: #f87171; }
+.warn          { color: #fbbf24; }   /* s015: a sensor past its "high" limit */
 
 /* ── tab colours: graphs, big numbers, rail glyphs ──────────────────────── */
 .tab-overview .rail-icon,  .tab-overview .tile-value,  .tab-overview .graph,  .tab-overview .placeholder-icon  { color: @c_overview; }

@@ -113,6 +113,7 @@ void ask_nice(Gtk::Window& parent, const std::string& name, int pid, int current
 }
 
 void ask_cpus(Gtk::Window& parent, const std::string& name, int pid, const std::vector<int>& current,
+              const std::vector<core::procacts::CpuGroup>& groups,
               std::function<void(std::vector<int>)> done) {
     auto m = make_modal(parent, "CPU Affinity", "Apply");
     auto* head = Gtk::make_managed<Gtk::Label>();
@@ -121,34 +122,57 @@ void ask_cpus(Gtk::Window& parent, const std::string& name, int pid, const std::
     head->set_xalign(0.0f);
     m.body->append(*head);
 
-    long n = ::sysconf(_SC_NPROCESSORS_CONF);
-    if (n < 1) n = 1;
-    auto* flow = Gtk::make_managed<Gtk::FlowBox>();
-    flow->set_selection_mode(Gtk::SelectionMode::NONE);
-    flow->set_max_children_per_line(8);
-    flow->set_min_children_per_line(4);
-    flow->set_column_spacing(6);
-    auto checks = std::make_shared<std::vector<Gtk::CheckButton*>>();
+    // (cpu number, its check), across every group.
+    auto checks = std::make_shared<std::vector<std::pair<int, Gtk::CheckButton*>>>();
     auto ok = m.ok;
     auto sync = [checks, ok] {
         bool any = false;
-        for (auto* c : *checks) any = any || c->get_active();
+        for (auto& [cpu, c] : *checks) any = any || c->get_active();
         ok->set_sensitive(any);
     };
-    for (long c = 0; c < n; ++c) {
-        auto* cb = Gtk::make_managed<Gtk::CheckButton>("CPU " + std::to_string(c));
-        cb->set_active(std::find(current.begin(), current.end(), int(c)) != current.end());
-        cb->signal_toggled().connect(sync);
-        checks->push_back(cb);
-        flow->append(*cb);
+    for (const auto& g : groups) {
+        if (!g.name.empty()) {   // s015: "Performance  CPU 2-9   [Only these]"
+            auto* gh = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 8);
+            gh->set_margin_top(6);
+            auto* gl = Gtk::make_managed<Gtk::Label>();
+            gl->set_markup("<b>" + Glib::Markup::escape_text(g.name) + "</b>  <span alpha=\"60%\">CPU " +
+                           core::procacts::cpus_to_text(g.cpus) + "</span>");
+            gl->set_xalign(0.0f);
+            gl->set_hexpand(true);
+            gh->append(*gl);
+            if (g.name != "Offline") {
+                auto* only = Gtk::make_managed<Gtk::Button>("Only these");
+                only->add_css_class("flat");
+                only->set_tooltip_text("Tick the " + g.name + " CPUs and nothing else");
+                only->signal_clicked().connect([checks, mine = g.cpus] {
+                    for (auto& [cpu, c] : *checks)
+                        c->set_active(std::find(mine.begin(), mine.end(), cpu) != mine.end());
+                });
+                gh->append(*only);
+            }
+            m.body->append(*gh);
+        }
+        auto* flow = Gtk::make_managed<Gtk::FlowBox>();
+        flow->set_selection_mode(Gtk::SelectionMode::NONE);
+        flow->set_max_children_per_line(8);
+        flow->set_min_children_per_line(4);
+        flow->set_column_spacing(6);
+        for (int cpu : g.cpus) {
+            auto* cb = Gtk::make_managed<Gtk::CheckButton>("CPU " + std::to_string(cpu));
+            cb->set_active(std::find(current.begin(), current.end(), cpu) != current.end());
+            cb->signal_toggled().connect(sync);
+            checks->emplace_back(cpu, cb);
+            flow->append(*cb);
+        }
+        m.body->append(*flow);
     }
-    m.body->append(*flow);
 
     auto* bar = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 6);
+    bar->set_margin_top(6);
     auto* all = Gtk::make_managed<Gtk::Button>("All");
     auto* none = Gtk::make_managed<Gtk::Button>("None");
-    all->signal_clicked().connect([checks] { for (auto* c : *checks) c->set_active(true); });
-    none->signal_clicked().connect([checks] { for (auto* c : *checks) c->set_active(false); });
+    all->signal_clicked().connect([checks] { for (auto& [cpu, c] : *checks) c->set_active(true); });
+    none->signal_clicked().connect([checks] { for (auto& [cpu, c] : *checks) c->set_active(false); });
     bar->append(*all);
     bar->append(*none);
     m.body->append(*bar);
@@ -156,8 +180,9 @@ void ask_cpus(Gtk::Window& parent, const std::string& name, int pid, const std::
 
     m.ok->signal_clicked().connect([w = m.win, checks, done] {
         std::vector<int> cpus;
-        for (std::size_t i = 0; i < checks->size(); ++i)
-            if ((*checks)[i]->get_active()) cpus.push_back(int(i));
+        for (auto& [cpu, c] : *checks)
+            if (c->get_active()) cpus.push_back(cpu);
+        std::sort(cpus.begin(), cpus.end());
         w->close();
         if (!cpus.empty()) done(cpus);
     });

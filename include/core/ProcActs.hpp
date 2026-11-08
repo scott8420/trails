@@ -23,6 +23,7 @@
 // even on your own process, so UNDO of a renice may ask for the password.
 // ─────────────────────────────────────────────────────────────────────────────
 #include "core/Undo.hpp"
+#include "core/probe/Probe.hpp"
 
 #include <cstdint>
 #include <functional>
@@ -118,6 +119,14 @@ namespace procacts {
 // "0-3,5" <-> {0,1,2,3,5}. parse returns false on junk.
 std::string cpus_to_text(const std::vector<int>& cpus);
 bool        cpus_from_text(const std::string& text, std::vector<int>& out);
+
+// s015: the affinity dialog's groups. P / E clusters (the sampler's, whose
+// `cores` index into `core_ids`) become "Performance" / "Efficiency" groups of
+// CPU numbers; CPUs 0..n_conf-1 in no cluster (offline) gather as "Offline".
+// One cluster or none -> one unnamed group of every CPU (today's flat list).
+struct CpuGroup { std::string name; std::vector<int> cpus; };
+std::vector<CpuGroup> cpu_groups(const std::vector<probe::Cluster>& clusters,
+                                 const std::vector<int>& core_ids, int n_conf);
 
 // s014: a process your desktop session stands on (gnome-shell, Xwayland,
 // Xorg, mutter, gdm*, gnome-session*, systemd*, dbus*). Stopping one freezes

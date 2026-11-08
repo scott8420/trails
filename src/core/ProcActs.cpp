@@ -141,6 +141,35 @@ std::string ProcKnobStore::end(const ProcKey& k, int sig) {
 // ── verbs ───────────────────────────────────────────────────────────────────
 namespace procacts {
 
+std::vector<CpuGroup> cpu_groups(const std::vector<probe::Cluster>& clusters,
+                                 const std::vector<int>& core_ids, int n_conf) {
+    std::vector<CpuGroup> out;
+    std::vector<bool> placed(std::size_t(std::max(n_conf, 0)), false);
+    if (clusters.size() >= 2) {
+        for (const auto& c : clusters) {
+            CpuGroup g{c.name, {}};
+            for (int idx : c.cores)
+                if (idx >= 0 && std::size_t(idx) < core_ids.size()) {
+                    const int cpu = core_ids[std::size_t(idx)];
+                    if (cpu < 0 || cpu >= n_conf || placed[std::size_t(cpu)]) continue;
+                    placed[std::size_t(cpu)] = true;
+                    g.cpus.push_back(cpu);
+                }
+            std::sort(g.cpus.begin(), g.cpus.end());
+            if (!g.cpus.empty()) out.push_back(std::move(g));
+        }
+    }
+    if (out.size() < 2) {   // nothing to group by: one flat list
+        out.assign(1, CpuGroup{"", {}});
+        for (int c = 0; c < n_conf; ++c) out[0].cpus.push_back(c);
+        return out;
+    }
+    CpuGroup off{"Offline", {}};
+    for (int c = 0; c < n_conf; ++c) if (!placed[std::size_t(c)]) off.cpus.push_back(c);
+    if (!off.cpus.empty()) out.push_back(std::move(off));
+    return out;
+}
+
 std::string cpus_to_text(const std::vector<int>& cpus) {
     std::vector<int> c = cpus;
     std::sort(c.begin(), c.end());

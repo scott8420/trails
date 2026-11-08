@@ -184,7 +184,15 @@ void Shell::on_proc_affinity() {  // acts: ask, then pin
     const core::ProcKey key{p->pid, p->start};
     const auto cur = m_proc_os.read(key);
     if (!cur) { report("", "The process has exited."); return; }
-    dialogs::ask_cpus(*this, p->name, p->pid, cur->cpus, [this, key, name = p->name](std::vector<int> cpus) {
+    // s015: group by P / E cluster when the sampler found them.
+    long n = ::sysconf(_SC_NPROCESSORS_CONF);
+    if (n < 1) n = 1;
+    std::vector<core::procacts::CpuGroup> groups;
+    if (auto snap = m_sampler ? m_sampler->snapshot() : nullptr)
+        groups = core::procacts::cpu_groups(snap->clusters, snap->core_ids, int(n));
+    else
+        groups = core::procacts::cpu_groups({}, {}, int(n));
+    dialogs::ask_cpus(*this, p->name, p->pid, cur->cpus, groups, [this, key, name = p->name](std::vector<int> cpus) {
         if (elevate::busy()) return;
         const std::string e = core::procacts::set_affinity(m_journal, m_app, key, name, cpus);
         report(q(name) + " may run on CPU " + core::procacts::cpus_to_text(cpus), e);

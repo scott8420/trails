@@ -90,6 +90,9 @@ namespace marks {
 // Drop a mark at "now" in the open recording. Returns its id, or 0 (and
 // `err`) when nothing is recording. One step: Ctrl+Z removes it.
 std::int64_t add(AppJournal& j, AppStore& s, const std::string& text, std::string* err = nullptr);
+// s015: the same, at `t` (unix seconds) -- the moment Ctrl+M was pressed,
+// not the moment the name dialog was answered.
+std::int64_t add_at(AppJournal& j, AppStore& s, double t, const std::string& text, std::string* err = nullptr);
 }  // namespace marks
 
 // s010: marks in an OPENED trail (the Trails tab). Each is one step.

@@ -84,6 +84,23 @@ void run_procacts_tests(const CheckFn& check_fn) {
         std::vector<int> v;
         check("cpus: to text", pa::cpus_to_text({5, 0, 1, 2, 3, 3}) == "0-3,5", pa::cpus_to_text({5, 0, 1, 2, 3}));
         check("cpus: single", pa::cpus_to_text({7}) == "7", "");
+        {   // s015: affinity groups. M1 Pro: cpu0-1 E, cpu2-9 P; cpu5 offline (absent from core_ids).
+            namespace probe = trails::core::probe;
+            const std::vector<int> ids{0, 1, 2, 3, 4, 6, 7, 8, 9};   // index -> cpu number
+            const std::vector<probe::Cluster> cl{{"Performance", 3228000, {2, 3, 4, 5, 6, 7, 8}},
+                                                 {"Efficiency", 2064000, {0, 1}}};
+            const auto g = pa::cpu_groups(cl, ids, 10);
+            check("groups: P, E, then Offline", g.size() == 3 && g[0].name == "Performance" &&
+                  g[1].name == "Efficiency" && g[2].name == "Offline", std::to_string(g.size()));
+            if (g.size() == 3)
+                check("groups: CPU numbers, not indices", pa::cpus_to_text(g[0].cpus) == "2-4,6-9" &&
+                      pa::cpus_to_text(g[1].cpus) == "0-1" && pa::cpus_to_text(g[2].cpus) == "5",
+                      pa::cpus_to_text(g[0].cpus));
+            const auto flat = pa::cpu_groups({{"All cores", 0, {0, 1, 2, 3}}}, {0, 1, 2, 3}, 4);
+            check("groups: one cluster -> one flat list", flat.size() == 1 && flat[0].name.empty() &&
+                  flat[0].cpus.size() == 4, "");
+            check("groups: no clusters -> one flat list", pa::cpu_groups({}, {}, 3).size() == 1, "");
+        }
         check("cpus: parse", pa::cpus_from_text("0-3,5", v) && v == std::vector<int>{0, 1, 2, 3, 5}, "");
         check("cpus: round trip", pa::cpus_from_text(pa::cpus_to_text({1, 2, 4, 6, 7}), v) &&
                                       v == std::vector<int>{1, 2, 4, 6, 7}, "");

@@ -61,11 +61,36 @@ void Shell::stop_sampling() {  // live: both down (idempotent)
     }
 }
 
+bool Shell::out_of_sight() const {  // live: minimised / suspended (s015)
+    // GTK 4.12+ reports SUSPENDED (GNOME: minimised, on another workspace, or
+    // fully covered); MINIMIZED is what X11 and older compositors say.
+    auto* surf = gtk_native_get_surface(GTK_NATIVE(const_cast<Shell*>(this)->gobj()));
+    if (!surf || !GDK_IS_TOPLEVEL(surf)) return false;
+    const auto st = gdk_toplevel_get_state(GDK_TOPLEVEL(surf));
+    unsigned hidden = GDK_TOPLEVEL_STATE_MINIMIZED;
+#if GTK_CHECK_VERSION(4, 12, 0)
+    hidden |= GDK_TOPLEVEL_STATE_SUSPENDED;
+#endif
+    return (st & hidden) != 0;
+}
+
 bool Shell::on_frame() {  // live: new snapshot? paint it
     if (!m_sampler) return false;
+    // s015: park the sampler while nobody can see it and nothing needs it.
+    const bool hidden = out_of_sight();
+    const bool park = core::pause_wanted(hidden, m_recorder.recording(), m_triggers.any_enabled());
+    if (park != m_sampler->paused()) {
+        m_sampler->set_paused(park);
+        if (auto lg = log::get(log::Area::Shell)) lg->info("sampling {}", park ? "paused (out of sight)" : "resumed");
+    }
     auto snap = m_sampler->snapshot();
     if (!snap || snap->seq == m_painted_seq) return true;
     m_painted_seq = snap->seq;
+    if (hidden) {   // still awake for a recording / trigger: keep those, skip the paint
+        run_triggers(*snap);
+        paint_record();
+        return true;
+    }
     if (!snap->error.empty())
         if (auto lg = log::get(log::Area::Io)) lg->warn("sample {}: unread {}", snap->seq, snap->error);
     // Only the visible page is painted; the others catch up when shown.

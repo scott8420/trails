@@ -50,6 +50,7 @@ public:
     void put(Id id, const std::optional<Trigger>& v);   // saves when a path is set
     std::vector<Id> ids() const;                         // in id order (= creation order)
     Id fresh_id() const;
+    bool any_enabled() const;   // s015: an armed rule keeps the sampler awake when minimised
 
     // Persistence. load() is not a user choice (not a step) and replaces the
     // book; a missing file is an empty book, a bad one is reported.

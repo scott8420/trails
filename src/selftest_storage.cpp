@@ -4,6 +4,7 @@
 // (a snap's squashfs on loop0, devtmpfs, tmpfs) that must stay out.
 #include "core/Sampler.hpp"
 #include "core/probe/Probe.hpp"
+#include "core/Wifi.hpp"
 
 #include <unistd.h>
 
@@ -41,6 +42,23 @@ struct Fx {
 void run_storage_tests(const CheckFn& check_fn) {
     auto check = [&](const std::string& n, bool ok, const std::string& d = "") { check_fn(n, ok, d); };
     std::cout << "\n-- storage + network (s007) --\n";
+
+    {   // s015: Wi-Fi facts as text
+        namespace c = trails::core;
+        const std::vector<unsigned char> cafe{'C', 'a', 'f', 0xC3, 0xA9};   // "Café"
+        check("wifi: UTF-8 SSID passes", c::ssid_text(cafe) == "Caf\xC3\xA9");
+        check("wifi: non-UTF-8 SSID escaped", c::ssid_text({'a', 0xFF, 0x01}) == "a\\xFF\\x01", c::ssid_text({'a', 0xFF, 0x01}));
+        check("wifi: truncated UTF-8 escaped", c::ssid_text({'x', 0xC3}) == "x\\xC3");
+        check("wifi: bands", c::wifi_band(2437) == "2.4 GHz" && c::wifi_band(5745) == "5 GHz" &&
+                             c::wifi_band(6115) == "6 GHz" && c::wifi_band(0).empty());
+        c::WifiInfo w;
+        check("wifi: not associated", c::wifi_line(w) == "not connected");
+        w = {"HomeNet", 866700, 5180, 70, true};
+        check("wifi: line", c::wifi_line(w) == "\u201CHomeNet\u201D · 5 GHz · 867 Mb/s", c::wifi_line(w));
+        w.ssid.clear();
+        w.bitrate_kbps = 0;
+        check("wifi: hidden, no bitrate", c::wifi_line(w) == "hidden network · 5 GHz", c::wifi_line(w));
+    }
 
     Fx fx;
     fx.file("sys/block/nvme0n1/size", "1000215216\n");

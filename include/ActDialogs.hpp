@@ -1,4 +1,5 @@
 #pragma once
+#include "core/ProcActs.hpp"
 // ActDialogs -- the small modal questions process actions ask (s006).
 // Each calls `done` only on OK / the confirming button; Cancel, Escape and
 // closing the window call nothing. Windows delete themselves when hidden.
@@ -17,7 +18,10 @@ void ask_nice(Gtk::Window& parent, const std::string& name, int pid, int current
               std::function<void(int)> done);
 
 // CPU affinity: one check per CPU, `current` ticked. OK needs at least one.
+// s015: CPUs come in `groups` (P / E clusters, from procacts::cpu_groups);
+// a named group gets a heading and an "Only these" button.
 void ask_cpus(Gtk::Window& parent, const std::string& name, int pid, const std::vector<int>& current,
+              const std::vector<core::procacts::CpuGroup>& groups,
               std::function<void(std::vector<int>)> done);
 
 // Terminate / kill: these cannot be undone, so they ask, naming the process.

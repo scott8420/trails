@@ -1,4 +1,5 @@
 #pragma once
+#include "NetMgr.hpp"
 #include "core/Sampler.hpp"
 #include "widgets/Graph.hpp"
 
@@ -54,6 +55,7 @@ private:
     Gtk::Box                           m_cards{Gtk::Orientation::VERTICAL, 18};
     std::vector<std::unique_ptr<Card>> m_card_store;
     std::string                        m_layout;
+    NetMgr                             m_nm;   // s015: SSID / band / bitrate for Wi-Fi
 };
 
 }  // namespace trails::pages

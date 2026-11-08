@@ -43,6 +43,11 @@ std::vector<TriggerBook::Id> TriggerBook::ids() const {
     return out;
 }
 
+bool TriggerBook::any_enabled() const {
+    for (const auto& [id, t] : m_rules) if (t.enabled) return true;
+    return false;
+}
+
 TriggerBook::Id TriggerBook::fresh_id() const { return m_rules.empty() ? 1 : m_rules.rbegin()->first + 1; }
 
 std::string TriggerBook::default_path() {

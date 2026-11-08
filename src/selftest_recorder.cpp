@@ -107,6 +107,14 @@ void run_recorder_tests(const CheckFn& check_fn) {
     check("mark: undo removes it", !rec.get_mark(m1));
     j.redo();
     check("mark: redo brings it back, same id", rec.get_mark(m1).has_value());
+    {   // s015: a named mark keeps the moment of the keypress
+        const double pressed = core::Recorder::wall_now() - 4.0;   // the dialog took 4 s
+        const auto m2 = core::marks::add_at(j, app, pressed, "fans spun up");
+        check("mark: add_at keeps the keypress time", m2 && rec.get_mark(m2) &&
+              rec.get_mark(m2)->t == pressed && rec.get_mark(m2)->text == "fans spun up", "");
+        j.undo();
+        check("mark: add_at is one undoable step", m2 && !rec.get_mark(m2), "");
+    }
     rec.push(snap(2));
     core::marks::add(j, app, "spike");
     rec.push(snap(3));

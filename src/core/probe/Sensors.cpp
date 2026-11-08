@@ -66,6 +66,13 @@ double scale(const std::string& kind) {
 }
 }  // namespace
 
+Alarm alarm(const Sensor& s) {
+    if (s.fault || s.kind == "fan") return Alarm::None;
+    if (!std::isnan(s.crit_at) && s.value >= s.crit_at) return Alarm::Crit;
+    if (!std::isnan(s.warn_at) && s.value >= s.warn_at) return Alarm::Warn;
+    return Alarm::None;
+}
+
 bool read_hwmon(const std::string& root, std::vector<HwmonChip>& out) {
     out.clear();
     const std::string base = at(root, "sys/class/hwmon");
@@ -98,6 +105,21 @@ bool read_hwmon(const std::string& root, std::vector<HwmonChip>& out) {
                 if (sys_num(dir + "/" + key + "_min", v))    s.min = double(v);
                 if (sys_num(dir + "/" + key + "_max", v))    s.max = double(v);
                 if (sys_num(dir + "/" + key + "_target", v)) s.target = double(v);
+            } else {
+                // s015: thresholds. A temperature limit at or below 0 degC is
+                // a driver placeholder (nvme's -273.15 min, some chips' 0),
+                // not a limit anyone means; power/in/curr use theirs as is.
+                const auto limit = [&](const char* suf, double& out) {
+                    if (!sys_num(dir + "/" + key + suf, v)) return;
+                    const double d = double(v) * scale(kind);
+                    if (kind == "temp" && d <= 0) return;
+                    out = d;
+                };
+                limit("_max", s.warn_at);
+                limit("_crit", s.crit_at);
+                // max == crit (nvme does this): one line, the critical one.
+                if (!std::isnan(s.warn_at) && !std::isnan(s.crit_at) && s.warn_at >= s.crit_at)
+                    s.warn_at = std::numeric_limits<double>::quiet_NaN();
             }
             chip.sensors.push_back(std::move(s));
         }

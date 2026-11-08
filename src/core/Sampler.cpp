@@ -41,8 +41,20 @@ void Sampler::set_interval(std::chrono::milliseconds ms) {
     wait_cv_.notify_all();   // the wait re-reads the interval
 }
 
+void Sampler::set_paused(bool p) {
+    if (paused_.exchange(p) == p) return;
+    { std::lock_guard lk(wait_mu_); wake_ = true; }
+    wait_cv_.notify_all();
+}
+
 void Sampler::loop(std::stop_token st) {
     while (!st.stop_requested()) {
+        if (paused_) {   // s015: parked until resumed or stopped
+            std::unique_lock lk(wait_mu_);
+            wait_cv_.wait(lk, st, [&] { return !paused_.load(); });
+            if (st.stop_requested()) return;
+            wake_ = false;
+        }
         try {
             tick();
         } catch (...) {
@@ -56,7 +68,7 @@ void Sampler::loop(std::stop_token st) {
         for (;;) {
             const auto left = interval() - std::chrono::duration_cast<std::chrono::milliseconds>(
                                                std::chrono::steady_clock::now() - start);
-            if (left <= std::chrono::milliseconds::zero()) break;
+            if (left <= std::chrono::milliseconds::zero() || paused_) break;
             wait_cv_.wait_for(lk, st, left, [&] { return wake_; });
             if (st.stop_requested()) return;
             wake_ = false;

@@ -1,4 +1,5 @@
 #pragma once
+#include <limits>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -178,7 +179,14 @@ struct Sensor {
     double      value = 0;
     double      min = -1, max = -1, target = -1;   // fans: <0 = not reported
     bool        fault = false;                      // <key>_fault = 1: no value
+    // s015: alarm thresholds (temp / power / in / curr), in display units.
+    // <key>_max ("high") and <key>_crit; NaN = not reported. Fans keep
+    // min / max above (a speed range, not an alarm).
+    double      warn_at = std::numeric_limits<double>::quiet_NaN();
+    double      crit_at = std::numeric_limits<double>::quiet_NaN();
 };
+enum class Alarm { None, Warn, Crit };
+Alarm alarm(const Sensor& s);   // value at / past crit_at, else at / past warn_at
 struct HwmonChip {
     std::string         id;      // "hwmon1"
     std::string         name;    // "macsmc_hwmon"

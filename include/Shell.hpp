@@ -101,6 +101,7 @@ private:
     void start_sampling();                       // category: live: Sampler + frame tick up
     void stop_sampling();                        // category: live: both down (idempotent)
     bool on_frame();                             // category: live: new snapshot? paint it
+    bool out_of_sight() const;                   // category: live: minimised / suspended (s015)
     void paint_overview(const core::Snapshot& s);   // category: live: tiles from a snapshot
 
     // ── acts (s006) ────────────────────────────────────────────────────────

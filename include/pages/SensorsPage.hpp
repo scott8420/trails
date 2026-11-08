@@ -8,6 +8,7 @@
 #include <gtkmm/image.h>
 #include <gtkmm/label.h>
 #include <gtkmm/scrolledwindow.h>
+#include <gtkmm/sizegroup.h>
 
 #include <memory>
 #include <string>
@@ -23,7 +24,9 @@
 //   one card per chip NAME   (six tas2764 amps = one card, rows numbered)
 //                  every sensor the chip offers: label, value, fan range, and
 //                  a sparkline for temperatures, fans and power. Chips with
-//                  no sensors (tps6598x) are left out.
+//                  no sensors (tps6598x) are left out. s015: the high / crit
+//                  limits the driver reports, and the value turns amber past
+//                  high, red past crit.
 // Everything is data-driven from /sys: no chip is special-cased beyond its
 // title (probe::chip_title).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -46,6 +49,9 @@ private:
         Gtk::Label title;
         Gtk::Grid  grid;
         std::vector<std::unique_ptr<Row>> rows;
+        // s015: every row's name and every sparkline share one height, so a
+        // row with a sparkline sits no taller than one without.
+        Glib::RefPtr<Gtk::SizeGroup> heights = Gtk::SizeGroup::create(Gtk::SizeGroup::Mode::VERTICAL);
     };
     struct Batt {
         explicit Batt(const std::string& n) : bar(n + ".bar", 14), graph(n + ".graph") {}

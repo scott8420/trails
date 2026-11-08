@@ -146,6 +146,12 @@ struct Snapshot {
     }
 };
 
+// s015: the minimised-window policy. Out of sight the sampler parks -- unless
+// a recording is running or a trigger is armed, which both need every tick.
+inline bool pause_wanted(bool out_of_sight, bool recording, bool trigger_armed) {
+    return out_of_sight && !recording && !trigger_armed;
+}
+
 struct SamplerConfig {
     std::string               root = "/";
     std::chrono::milliseconds interval{1000};
@@ -164,6 +170,13 @@ public:
     void start();                 // idempotent; first tick happens immediately
     void stop();                  // joins; prompt even mid-interval
     bool running() const { return thread_.joinable(); }
+
+    // s015: park the thread between ticks (window minimised / hidden). No
+    // ticks, no publishes, no listener calls while paused; resume ticks at
+    // once. The first tick after a long pause averages its rates over the
+    // whole gap (dt says how long), which is honest and harmless.
+    void set_paused(bool p);
+    bool paused() const { return paused_.load(); }
 
     void set_interval(std::chrono::milliseconds ms);
     std::chrono::milliseconds interval() const {
@@ -219,6 +232,7 @@ private:
     std::mutex                  wait_mu_;
     std::condition_variable_any wait_cv_;
     bool                        wake_ = false;   // wait_mu_: interval changed
+    std::atomic<bool>           paused_{false};
     std::jthread                thread_;
 };
 

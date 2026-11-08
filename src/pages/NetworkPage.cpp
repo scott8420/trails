@@ -148,6 +148,10 @@ void NetworkPage::paint(const core::Snapshot& s) {
         const auto& l = s.links[c.index];
         set(c.title, n.name);
         std::string sub = kind(l) + " · " + (l.link.operstate.empty() ? "?" : l.link.operstate);
+        if (l.link.wireless && up(l)) {   // s015: NetworkManager's SSID, band, bitrate
+            m_nm.poll(n.name);
+            if (const auto w = m_nm.get(n.name)) sub += " · " + core::wifi_line(*w);
+        }
         if (l.has_signal)
             sub += " · signal " + dbm(l.level_dbm) + " (" + signal_word(l.level_dbm) + ")";
         else if (l.link.speed_mbps > 0)

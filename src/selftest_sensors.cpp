@@ -53,6 +53,9 @@ void run_sensor_tests(const CheckFn& check_fn) {
     fx.file(H + "hwmon0/temp1_input", "38850\n");
     fx.file(H + "hwmon0/temp1_label", "Composite\n");
     fx.file(H + "hwmon0/temp1_alarm", "0\n");
+    fx.file(H + "hwmon0/temp1_max", "84850\n");    // s015: nvme says max == crit
+    fx.file(H + "hwmon0/temp1_crit", "84850\n");
+    fx.file(H + "hwmon0/temp1_min", "-273150\n");
     const std::string S = H + "hwmon1/";
     fx.file(S + "name", "macsmc_hwmon\n");
     for (int i = 1; i <= 4; ++i) {
@@ -77,6 +80,9 @@ void run_sensor_tests(const CheckFn& check_fn) {
     fx.file(S + "curr1_label", "DC In\n");
     fx.file(H + "hwmon2/name", "macsmc_battery\n");
     fx.file(H + "hwmon2/temp1_input", "31000\n");
+    fx.file(H + "hwmon2/temp1_max", "30000\n");    // s015: 31 degC is past "high"
+    fx.file(H + "hwmon2/temp1_crit", "60000\n");
+    fx.file(H + "hwmon2/curr1_crit", "500\n");     // 0.77 A past a 0.5 A crit
     fx.file(H + "hwmon2/in0_input", "12700\n");
     fx.file(H + "hwmon2/power1_input", "9800000\n");
     fx.file(H + "hwmon2/curr1_input", "770\n");
@@ -109,6 +115,19 @@ void run_sensor_tests(const CheckFn& check_fn) {
         check("hwmon: mV -> V, mA -> A", near(smc.sensors[10].value, 12.34) && near(smc.sensors[12].value, 2.5));
         check("hwmon: label optional", chips[2].sensors.size() == 4 && chips[2].sensors[0].label.empty());
         check("hwmon: sensorless chip kept, empty", chips[4].sensors.empty() && chips[4].name.rfind("tps6598x", 0) == 0);
+        {   // s015: thresholds and alarms
+            const auto& nv = chips[0].sensors[0];
+            check("thresholds: max == crit folds to crit only", std::isnan(nv.warn_at) && near(nv.crit_at, 84.85) &&
+                                                                    probe::alarm(nv) == probe::Alarm::None);
+            const auto& bt = chips[2].sensors[0];
+            check("thresholds: past high -> Warn", near(bt.warn_at, 30) && near(bt.crit_at, 60) &&
+                                                     probe::alarm(bt) == probe::Alarm::Warn);
+            const auto& cu = chips[2].sensors[3];
+            check("thresholds: past crit -> Crit (current)", cu.kind == "curr" && probe::alarm(cu) == probe::Alarm::Crit);
+            check("thresholds: none reported -> no alarm", std::isnan(smc.sensors[0].warn_at) &&
+                                                             probe::alarm(smc.sensors[0]) == probe::Alarm::None);
+            check("thresholds: fans never alarm on max", probe::alarm(smc.sensors[4]) == probe::Alarm::None);
+        }
         check("hwmon: _fault = 1 -> fault, no value", chips[7].sensors.size() == 1 && chips[7].sensors[0].fault &&
                                                           !chips[6].sensors[0].fault);
     }

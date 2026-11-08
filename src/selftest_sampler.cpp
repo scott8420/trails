@@ -394,7 +394,29 @@ void run_sampler_tests(const Check& check) {
         const auto got = sm.snapshot() ? sm.snapshot()->seq : 0;
         check("thread: publishes snapshots on its own", got >= 3, std::to_string(got));
 
-        sm.set_interval(seconds(30));
+        // s015: pause parks the thread; resume ticks at once.
+        sm.set_paused(true);
+        std::this_thread::sleep_for(milliseconds(120));   // let a tick in flight land
+        const auto held = sm.snapshot()->seq;
+        std::this_thread::sleep_for(milliseconds(300));   // ~6 intervals
+        check("pause: no ticks while paused", sm.paused() && sm.snapshot()->seq == held,
+              std::to_string(held) + " -> " + std::to_string(sm.snapshot()->seq));
+        sm.set_interval(seconds(30));                     // resume must not wait out an interval
+        const auto t2 = steady_clock::now();
+        sm.set_paused(false);
+        while (sm.snapshot()->seq == held && steady_clock::now() - t2 < seconds(2))
+            std::this_thread::sleep_for(milliseconds(5));
+        const auto rms = duration_cast<milliseconds>(steady_clock::now() - t2).count();
+        check("pause: resume ticks at once", sm.snapshot()->seq > held && rms < 500,
+              std::to_string(rms) + " ms");
+        sm.set_paused(true);
+        std::this_thread::sleep_for(milliseconds(50));
+        const auto t3 = steady_clock::now();
+        sm.stop();
+        check("pause: stop() is prompt while paused", !sm.running() &&
+              duration_cast<milliseconds>(steady_clock::now() - t3).count() < 500, "");
+        sm.set_paused(false);
+        sm.start();
         std::this_thread::sleep_for(milliseconds(80));   // now parked in a 30 s wait
         const auto t1 = steady_clock::now();
         sm.stop();
@@ -403,6 +425,9 @@ void run_sampler_tests(const Check& check) {
               std::to_string(ms) + " ms");
 
         sm.set_interval(milliseconds(10));
+        check("pause policy: hidden + idle parks; recording or an armed trigger keeps it awake",
+              core::pause_wanted(true, false, false) && !core::pause_wanted(false, false, false) &&
+              !core::pause_wanted(true, true, false) && !core::pause_wanted(true, false, true), "");
         check("thread: interval floor is 50 ms", sm.interval() == milliseconds(50),
               std::to_string(sm.interval().count()));
     }

@@ -77,15 +77,24 @@ void Shell::on_record() {  // record: start / stop
     sync_acts();
 }
 
-void Shell::on_mark() {  // record: a mark now (undoable)
+void Shell::on_mark() {  // record: name it, then a mark at the keypress (undoable)
     if (!m_recorder.recording()) return;
-    std::string err;
-    const std::string text = "Mark " + std::to_string(m_marks_made + 1);
-    if (core::marks::add(m_journal, m_app, text, &err)) {
-        ++m_marks_made;
-        if (auto lg = log::get(log::Area::Shell)) lg->info("record: {}", text);
-    }
-    paint_record();
+    // s015: the moment is NOW; the dialog only names it. Enter takes the
+    // offered "Mark N", Escape drops the mark.
+    const double pressed = core::Recorder::wall_now();
+    const std::string dflt = "Mark " + std::to_string(m_marks_made + 1);
+    dialogs::ask_text(*this, "Mark", "Name this moment", dflt, [this, pressed, dflt](std::string text) {
+        if (text.empty()) text = dflt;
+        std::string err;
+        if (core::marks::add_at(m_journal, m_app, pressed, text, &err)) {
+            ++m_marks_made;
+            if (auto lg = log::get(log::Area::Shell)) lg->info("record: {}", text);
+        } else {
+            m_rec_status.set_text("Mark not added: " + err);   // the recording ended meanwhile
+            m_rec_status.add_css_class("error");
+        }
+        paint_record();
+    });
 }
 
 void Shell::on_open_recordings() {  // record: the folder, in Files

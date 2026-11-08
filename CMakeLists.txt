@@ -61,6 +61,7 @@ add_library(trails_core STATIC
     # s003 -- the one tab list (rail, pages, icons, Alt+N) and value formatting.
     src/core/Tabs.cpp
     src/core/Format.cpp
+    src/core/Wifi.cpp           # s015: Wi-Fi facts (SSID, band, bitrate) as text
     # s005 -- the Processes tab's GTK-free half: tree index, filter, names.
     src/core/ProcView.cpp
     # s006 -- process actions: the knob store the journal writes through, the
@@ -162,6 +163,7 @@ add_executable(trails
     src/pages/TrailsPage.cpp
     src/pages/ServicesPage.cpp
     src/Systemd.cpp
+    src/NetMgr.cpp              # s015: NetworkManager over D-Bus (SSID, bitrate)
     src/widgets/Timeline.cpp
     src/AboutWindow.cpp
     src/ShortcutsDialog.cpp

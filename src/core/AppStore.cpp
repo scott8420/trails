@@ -67,13 +67,17 @@ void AppStore::put(const Ref& r, const std::optional<Rec>& v) {
 
 namespace marks {
 std::int64_t add(AppJournal& j, AppStore& s, const std::string& text, std::string* err) {
+    return add_at(j, s, Recorder::wall_now(), text, err);
+}
+
+std::int64_t add_at(AppJournal& j, AppStore& s, double t, const std::string& text, std::string* err) {
     Recorder* rec = s.recorder();
     const std::int64_t id = rec ? rec->fresh_mark_id() : 0;
     if (!id) {
         if (err) *err = "Nothing is recording.";
         return 0;
     }
-    const Marker m{Recorder::wall_now(), "mark", text};
+    const Marker m{t, "mark", text};
     j.run("Mark “" + text + "”", {Ref::of_mark(id)}, [&] { s.put(Ref::of_mark(id), Rec{m}); });
     return id;
 }

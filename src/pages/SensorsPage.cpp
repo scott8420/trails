@@ -2,6 +2,7 @@
 #include "Registry.hpp"
 #include "core/Format.hpp"
 
+#include <cmath>
 #include <cstdio>
 #include <map>
 
@@ -163,6 +164,10 @@ void SensorsPage::rebuild(const core::Snapshot& s, const std::string& layout) {
                 row->value.add_css_class("kv-value");
                 row->extra.set_xalign(0.0f);
                 row->extra.add_css_class("dim-label");
+                row->name.set_valign(Gtk::Align::CENTER);
+                row->value.set_valign(Gtk::Align::CENTER);
+                row->extra.set_valign(Gtk::Align::CENTER);
+                card->heights->add_widget(row->name);
                 card->grid.attach(row->name, 0, r);
                 card->grid.attach(row->value, 1, r);
                 card->grid.attach(row->extra, 2, r);
@@ -173,6 +178,8 @@ void SensorsPage::rebuild(const core::Snapshot& s, const std::string& layout) {
                     row->spark->add_css_class("graph");
                     if (x.kind == "temp") row->spark->set_scale(widgets::Graph::Scale::Percent);
                     else row->spark->set_scale(widgets::Graph::Scale::Auto, x.kind == "fan" ? 1000.0 : 1.0);
+                    row->spark->set_valign(Gtk::Align::CENTER);
+                    card->heights->add_widget(*row->spark);
                     card->grid.attach(*row->spark, 3, r);
                 }
                 ++r;
@@ -244,6 +251,7 @@ void SensorsPage::paint(const core::Snapshot& s) {
     }
 
     // Chip cards.
+    int over = 0;   // s015: sensors past their critical limit
     for (auto& card : m_cards)
         for (auto& row : card->rows) {
             const probe::Sensor* x = nullptr;
@@ -259,13 +267,26 @@ void SensorsPage::paint(const core::Snapshot& s) {
                 if (x->min >= 0) extra += "min " + num(x->min, 0);
                 if (x->max >= 0) extra += (extra.empty() ? "" : " · ") + std::string("max ") + num(x->max, 0);
                 if (x->target >= 0) extra += (extra.empty() ? "" : " · ") + std::string("target ") + num(x->target, 0);
+            } else {   // s015: the driver's limits, if it gives any
+                const auto lim = [&](double v) { return value_text(probe::Sensor{x->kind, "", "", v}); };
+                if (!std::isnan(x->warn_at)) extra += "high " + lim(x->warn_at);
+                if (!std::isnan(x->crit_at)) extra += (extra.empty() ? "" : " · ") + std::string("crit ") + lim(x->crit_at);
             }
             set(row->extra, extra);
+            const auto a = probe::alarm(*x);
+            if (a == probe::Alarm::Crit) ++over;
+            row->value.set_css_classes(a == probe::Alarm::Crit ? std::vector<Glib::ustring>{"kv-value", "error"}
+                                     : a == probe::Alarm::Warn ? std::vector<Glib::ustring>{"kv-value", "warn"}
+                                                               : std::vector<Glib::ustring>{"kv-value"});
             if (row->spark) {
                 const std::string id = "hw." + row->chip_id + "." + row->key;
                 row->spark->set_series(hist(s, id), {}, cap(s, id));
             }
         }
+    // s015: say so in the header, where the eye lands first.
+    if (over > 0 && s.temp_max > 0)
+        set(m_sub, "Hottest: " + s.temp_max_name + "  ·  \u26A0 " + std::to_string(over) +
+                   (over == 1 ? " sensor" : " sensors") + " past critical");
 }
 
 }  // namespace trails::pages
